@@ -60,6 +60,7 @@ import AnnotationGuidePage from 'components/md-guide/annotation-guide-page';
 import InvitationsPage from 'components/invitations-page/invitations-page';
 
 import RequestsPage from 'components/requests-page/requests-page';
+import ActivityLogPage from 'components/activity-log-page/activity-log-page';
 
 import AnnotationPageContainer from 'containers/annotation-page/annotation-page';
 import { Organization, getCore, UserGrowthDataModifiableFields } from 'cvat-core-wrapper';
@@ -597,6 +598,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
                                         <Route exact path='/invitations' component={InvitationsPage} />
                                         <Route exact path='/organization' component={OrganizationPage} />
                                         <Route exact path='/requests' component={RequestsPage} />
+                                        <Route exact path='/activity-log' component={ActivityLogPage} />
                                         <Route exact path='/profile' component={ProfilePageComponent} />
                                         { routesToRender }
                                         <Route

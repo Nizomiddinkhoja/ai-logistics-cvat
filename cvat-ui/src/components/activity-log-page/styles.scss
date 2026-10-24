@@ -1,0 +1,113 @@
+// Copyright (C) CVAT.ai Corporation
+//
+// SPDX-License-Identifier: MIT
+
+@import 'base';
+
+.cvat-activity-log-page {
+    height: 100%;
+    overflow-y: auto;
+    padding: $grid-unit-size * 2 $grid-unit-size * 3;
+}
+
+.cvat-activity-log-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $grid-unit-size;
+
+    h4.ant-typography {
+        margin: 0;
+    }
+}
+
+.cvat-activity-log-header-actions {
+    display: flex;
+    gap: $grid-unit-size;
+}
+
+.cvat-activity-log-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $grid-unit-size;
+    margin: $grid-unit-size * 2 0;
+
+    .cvat-activity-log-period {
+        width: $grid-unit-size * 42;
+    }
+
+    .cvat-activity-log-user-filter {
+        width: $grid-unit-size * 24;
+    }
+
+    .cvat-activity-log-scope-filter {
+        width: $grid-unit-size * 36;
+    }
+
+    .cvat-activity-log-source-filter {
+        width: $grid-unit-size * 16;
+    }
+
+    .cvat-activity-log-id-filter {
+        width: $grid-unit-size * 15;
+    }
+
+    .cvat-activity-log-search {
+        width: $grid-unit-size * 36;
+    }
+}
+
+.cvat-activity-log-table {
+    .cvat-activity-log-time {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cvat-activity-log-user {
+        padding: 0;
+        height: auto;
+    }
+
+    .cvat-activity-log-scope {
+        cursor: pointer;
+    }
+
+    .cvat-activity-log-object {
+        max-width: $grid-unit-size * 50;
+    }
+
+    .ant-table-row {
+        cursor: pointer;
+    }
+}
+
+.cvat-activity-log-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 $grid-unit-size;
+
+    > * {
+        white-space: nowrap;
+    }
+}
+
+.cvat-activity-log-details {
+    display: flex;
+    flex-direction: column;
+    gap: $grid-unit-size;
+}
+
+.cvat-activity-log-payload {
+    max-height: $grid-unit-size * 40;
+    overflow: auto;
+    margin: 0;
+    padding: $grid-unit-size;
+    background: $background-color-2;
+    border: 1px solid $border-color-1;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

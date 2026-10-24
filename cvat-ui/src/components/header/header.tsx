@@ -23,6 +23,7 @@ import {
     PlusOutlined,
     MailOutlined,
     GlobalOutlined,
+    HistoryOutlined,
 } from '@ant-design/icons';
 import Layout from 'antd/lib/layout';
 import Button from 'antd/lib/button';
@@ -304,6 +305,18 @@ function HeaderComponent(props: Props): JSX.Element {
             },
             label: t('Admin page'),
         }, 0]);
+    }
+
+    if (user.isSuperuser || user.groups.includes('admin')) {
+        menuItems.push([{
+            key: 'activity_log',
+            icon: <HistoryOutlined />,
+            className: 'cvat-header-menu-activity-log',
+            onClick: (): void => {
+                history.push('/activity-log');
+            },
+            label: t('Activity log'),
+        }, 5]);
     }
 
     menuItems.push([{
