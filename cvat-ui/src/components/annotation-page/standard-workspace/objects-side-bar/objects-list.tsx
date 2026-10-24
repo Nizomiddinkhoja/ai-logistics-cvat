@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {
+    useCallback, useEffect, useRef, useState,
+} from 'react';
 
 import {
     DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor,
@@ -17,7 +19,7 @@ import Button from 'antd/lib/button';
 import Text from 'antd/lib/typography/Text';
 
 import { StatesOrdering, Workspace } from 'reducers';
-import { Label, ObjectState } from 'cvat-core-wrapper';
+import { Attribute, Label, ObjectState } from 'cvat-core-wrapper';
 import ObjectItemContainer from 'containers/annotation-page/standard-workspace/objects-side-bar/object-item';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import LabelSelector from 'components/label-selector/label-selector';
@@ -41,6 +43,7 @@ import {
 import LayerInsertDropArea from './drag-and-drop/layer-insert-drop-area';
 import LayerSection from './drag-and-drop/layer-section';
 import ObjectsListOrderingContext from './objects-list-ordering';
+import SelectionAttributes from './selection-attributes';
 
 interface Props {
     workspace: Workspace;
@@ -75,7 +78,7 @@ interface Props {
     hideSelectedStates(): void;
     removeSelectedStates(): void;
     selectionLabels: Label[];
-    changeSelectedStatesLabel(label: Label): void;
+    changeSelectedStatesLabel(label: Label, attributes: Record<number, string>): void;
     clipboardObjectsCount: number;
     copySelectedStates(): void;
     pasteFromClipboard(): void;
@@ -136,6 +139,11 @@ function ObjectListComponent(props: Props): JSX.Element {
     const [pendingExpandedLayerItemID, setPendingExpandedLayerItemID] = useState<string | null>(null);
     // the label picked for the multi selection, it is kept to be applied to the next selections too
     const [selectionLabel, setSelectionLabel] = useState<Label | null>(null);
+    // attribute values edited for the multi selection, applied together with the label
+    const [selectionAttributes, setSelectionAttributes] = useState<Record<number, string>>({});
+    // the selection panel grows with the attributes, the list below has to shrink by the same amount
+    const selectionPanelRef = useRef<HTMLDivElement>(null);
+    const [selectionPanelExtraHeight, setSelectionPanelExtraHeight] = useState<number>(0);
     const layerObjectStates = objectStates.filter(isLayerState);
     const zLayers = Array.from(
         new Set(layerObjectStates.map((state) => state.zOrder)),
@@ -352,6 +360,57 @@ function ObjectListComponent(props: Props): JSX.Element {
             .map((state: ObjectState) => state.label.id),
     );
     const commonSelectedLabelID = selectedLabelIDs.size === 1 ? [...selectedLabelIDs][0] as number : null;
+    const targetSelectionLabel = selectionLabel ?? selectionLabels
+        .find((label: Label): boolean => label.id === commonSelectedLabelID) ?? null;
+    const targetSelectionAttributes = (targetSelectionLabel?.attributes ?? [])
+        .filter((attribute: Attribute): boolean => Number.isInteger(attribute.id));
+
+    // the value shared by the whole selection for every attribute, null if the values differ
+    const selectionAttributeValues = targetSelectionAttributes
+        .reduce((acc: Record<number, string | null>, attribute: Attribute) => {
+            const attrID = attribute.id as number;
+            if (attrID in selectionAttributes) {
+                acc[attrID] = selectionAttributes[attrID];
+                return acc;
+            }
+
+            const values = new Set(
+                objectStates
+                    .filter((state: ObjectState) => selectedStateIDs.includes(state.clientID as number))
+                    .map((state: ObjectState): string => (
+                        // objects with another label get the default value after the label change
+                        state.label.id === targetSelectionLabel?.id ?
+                            state.attributes[attrID] ?? attribute.defaultValue :
+                            attribute.defaultValue
+                    )),
+            );
+            acc[attrID] = values.size === 1 ? [...values][0] : null;
+            return acc;
+        }, {});
+
+    const selectionKey = selectedStateIDs.join(',');
+    useEffect((): void => {
+        setSelectionAttributes({});
+    }, [selectionKey, selectionLabel]);
+
+    useEffect((): (() => void) | undefined => {
+        const panel = selectionPanelRef.current;
+        if (!panel) {
+            setSelectionPanelExtraHeight(0);
+            return undefined;
+        }
+
+        const observer = new ResizeObserver((): void => {
+            // 64px is the height of the panel without attributes, the list styles already count it
+            setSelectionPanelExtraHeight(Math.max(0, panel.offsetHeight - 64));
+        });
+        observer.observe(panel);
+        return (): void => observer.disconnect();
+    }, [!!selectedStateIDs.length]);
+
+    const onChangeSelectionAttribute = useCallback((attrID: number, value: string): void => {
+        setSelectionAttributes((current: Record<number, string>) => ({ ...current, [attrID]: value }));
+    }, []);
 
     return (
         <ObjectsListOrderingContext.Provider value={sortedStatesID}>
@@ -375,7 +434,7 @@ function ObjectListComponent(props: Props): JSX.Element {
                 changeShowGroundTruth={changeShowGroundTruth}
             />
             {!!selectedStateIDs.length && (
-                <div className='cvat-objects-sidebar-selection-panel'>
+                <div className='cvat-objects-sidebar-selection-panel' ref={selectionPanelRef}>
                     <div className='cvat-objects-sidebar-selection-label'>
                         <CVATTooltip title={t('Set this label for every selected object')}>
                             <LabelSelector
@@ -391,16 +450,25 @@ function ObjectListComponent(props: Props): JSX.Element {
                             className='cvat-objects-sidebar-selection-label-apply-button'
                             type='primary'
                             size='small'
-                            disabled={!selectionLabel}
+                            disabled={!targetSelectionLabel ||
+                                (!selectionLabel && !Object.keys(selectionAttributes).length)}
                             onClick={() => {
-                                if (selectionLabel) {
-                                    changeSelectedStatesLabel(selectionLabel);
+                                if (targetSelectionLabel) {
+                                    changeSelectedStatesLabel(targetSelectionLabel, selectionAttributes);
+                                    setSelectionAttributes({});
                                 }
                             }}
                         >
                             {t('Apply')}
                         </Button>
                     </div>
+                    {!!targetSelectionAttributes.length && (
+                        <SelectionAttributes
+                            attributes={targetSelectionAttributes}
+                            values={selectionAttributeValues}
+                            onChange={onChangeSelectionAttribute}
+                        />
+                    )}
                     <Text strong>{t('{{length}} selected', { length: selectedStateIDs.length })}</Text>
                     <div className='cvat-objects-sidebar-selection-actions'>
                         <CVATTooltip title={t('Copy selected objects, they can be pasted on any other frame or task')}>
@@ -475,7 +543,10 @@ function ObjectListComponent(props: Props): JSX.Element {
                     </div>
                 </div>
             )}
-            <div className='cvat-objects-sidebar-states-list'>
+            <div
+                className='cvat-objects-sidebar-states-list'
+                style={{ '--selection-panel-extra-height': `${selectionPanelExtraHeight}px` } as React.CSSProperties}
+            >
                 {statesOrdering === StatesOrdering.LAYER ? (
                     <div className='cvat-objects-sidebar-z-layers-panel'>
                         <div className='cvat-objects-sidebar-z-layers-title'>

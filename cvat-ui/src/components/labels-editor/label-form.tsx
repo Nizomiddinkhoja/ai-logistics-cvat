@@ -24,7 +24,7 @@ import patterns from 'utils/validation-patterns';
 import config from 'config';
 import { t } from 'i18n';
 import {
-    equalArrayHead, idGenerator, LabelOptColor, SkeletonConfiguration, validateNumberAttributeValues,
+    idGenerator, LabelOptColor, SkeletonConfiguration, validateNumberAttributeValues,
 } from './common';
 
 export enum AttributeType {
@@ -227,18 +227,11 @@ export default class LabelForm extends React.Component<Props> {
         );
     }
 
-    private renderAttributeValuesInput(fieldInstance: any, attr: any): JSX.Element {
+    private renderAttributeValuesInput(fieldInstance: any): JSX.Element {
         const { key } = fieldInstance;
-        const locked = attr.id as number >= 0;
-        const existingValues = attr.values;
 
+        // values of existing attributes can be removed too, the server resets annotations using them
         const validator = (_: any, values: string[]): Promise<void> => {
-            if (locked && existingValues) {
-                if (!equalArrayHead(existingValues, values)) {
-                    return Promise.reject(new Error('You can only append new values'));
-                }
-            }
-
             for (const value of values) {
                 if (!patterns.validateAttributeValue.pattern.test(value)) {
                     return Promise.reject(new Error(`Invalid attribute value: "${value}"`));
@@ -331,9 +324,8 @@ export default class LabelForm extends React.Component<Props> {
         );
     }
 
-    private renderNumberRangeInput(fieldInstance: any, attr: any): JSX.Element {
+    private renderNumberRangeInput(fieldInstance: any): JSX.Element {
         const { key } = fieldInstance;
-        const locked = attr.id as number >= 0;
 
         const validator = (_: any, strNumbers: string): Promise<void> => {
             if (typeof strNumbers !== 'string') return Promise.resolve();
@@ -360,7 +352,7 @@ export default class LabelForm extends React.Component<Props> {
                     },
                 ]}
             >
-                <Input className='cvat-attribute-values-input' disabled={locked} placeholder='min;max;step' />
+                <Input className='cvat-attribute-values-input' placeholder='min;max;step' />
             </Form.Item>
         );
     }
@@ -449,11 +441,11 @@ export default class LabelForm extends React.Component<Props> {
                                 const type = currentFieldValue.type || AttributeType.SELECT;
                                 let element = null;
                                 if ([AttributeType.SELECT, AttributeType.RADIO].includes(type)) {
-                                    element = this.renderAttributeValuesInput(fieldInstance, attr);
+                                    element = this.renderAttributeValuesInput(fieldInstance);
                                 } else if (type === AttributeType.CHECKBOX) {
                                     element = this.renderBooleanValueInput(fieldInstance);
                                 } else if (type === AttributeType.NUMBER) {
-                                    element = this.renderNumberRangeInput(fieldInstance, attr);
+                                    element = this.renderNumberRangeInput(fieldInstance);
                                 } else {
                                     element = this.renderDefaultValueInput(fieldInstance);
                                 }

@@ -1783,6 +1783,8 @@
     "{{skipped}} object(s) kept their label: they are locked, skeletons, ": "Объектов, сохранивших свою метку: {{skipped}}. Они заблокированы, являются скелетами, ",
     "or the label \"{{name}}\" can not be used for their shape type": "либо метку «{{name}}» нельзя использовать для их типа фигуры",
     "Label \"{{name}}\" set for {{length}} object(s)": "Метка «{{name}}» назначена объектам: {{length}}",
+    "Attributes updated for {{length}} object(s)": "Атрибуты обновлены у объектов: {{length}}",
+    "Different values": "Разные значения",
     "The selected objects do not fit into the clipboard, try copying fewer of them": "Выбранные объекты не помещаются в буфер обмена, попробуйте скопировать меньше",
     ", {{skipped}} tag(s) skipped": ", пропущено тегов: {{skipped}}",
     "{{copied}} object(s) copied{{note}}. Open any frame and press Ctrl+V to paste": "Скопировано объектов: {{copied}}{{note}}. Откройте любой кадр и нажмите Ctrl+V, чтобы вставить",

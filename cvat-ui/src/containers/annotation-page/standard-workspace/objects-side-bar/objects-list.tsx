@@ -651,7 +651,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
     };
 
     // Sets one label for the whole multi selection, e.g. to fix classes after automatic annotation
-    private changeSelectedStatesLabel = (label: Label): void => {
+    private changeSelectedStatesLabel = (label: Label, attributes: Record<number, string>): void => {
         const { updateAnnotations } = this.props;
         const selected = this.selectedStates();
         const changeable = selected.filter((state: ObjectState): boolean => (
@@ -660,11 +660,36 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             !state.parentID &&
             [state.shapeType || LabelType.TAG, LabelType.ANY].includes(label.type)
         ));
-        const states = changeable.filter((state: ObjectState): boolean => state.label.id !== label.id);
+
+        // only attributes of the label can be set
+        const labelAttributeIDs = label.attributes.map((attribute) => attribute.id);
+        const changedAttributes = Object.fromEntries(
+            Object.entries(attributes).filter(([attrID]) => labelAttributeIDs.includes(+attrID)),
+        );
+
+        const relabeled = changeable.filter((state: ObjectState): boolean => state.label.id !== label.id);
+        const states = changeable.filter((state: ObjectState): boolean => (
+            state.label.id !== label.id ||
+            Object.entries(changedAttributes).some(([attrID, value]) => state.attributes[+attrID] !== value)
+        ));
         const skipped = selected.length - changeable.length;
 
         for (const state of states) {
-            state.label = label;
+            if (state.label.id !== label.id) {
+                state.label = label;
+                if (Object.keys(changedAttributes).length) {
+                    // values of the previous label attributes would not pass validation of the new label
+                    for (const attrID of Object.keys(state.attributes)) {
+                        if (!labelAttributeIDs.includes(+attrID)) {
+                            delete state.attributes[+attrID];
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(changedAttributes).length) {
+                state.attributes = changedAttributes;
+            }
         }
 
         if (states.length) {
@@ -676,8 +701,10 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                 t('{{skipped}} object(s) kept their label: they are locked, skeletons, ', { skipped }) +
                 t('or the label "{{name}}" can not be used for their shape type', { name: label.name }),
             );
-        } else if (states.length) {
+        } else if (relabeled.length) {
             message.success(t('Label "{{name}}" set for {{length}} object(s)', { name: label.name, length: states.length }));
+        } else if (states.length) {
+            message.success(t('Attributes updated for {{length}} object(s)', { length: states.length }));
         }
     };
 

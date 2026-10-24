@@ -45,10 +45,11 @@ function RightGroup(props: Props): JSX.Element {
 
     const filters = annotationFilters.length;
 
-    const openGuide = useCallback(() => {
+    const openGuide = useCallback((skipEmpty = false) => {
         const PADDING = Math.min(window.screen.availHeight, window.screen.availWidth) * 0.4;
         jobInstance.guide().then((guide) => {
-            if (guide) {
+            // do not bother the user with an empty guide when it is opened automatically
+            if (guide && !(skipEmpty && !guide.markdown.trim())) {
                 Modal.info({
                     icon: null,
                     width: window.screen.availWidth - PADDING,
@@ -94,7 +95,7 @@ function RightGroup(props: Props): JSX.Element {
 
                 if (!seenGuides.includes(jobInstance.guideId)) {
                     // open guide if the user have not seen it yet
-                    openGuide();
+                    openGuide(true);
                     const updatedSeenGuides = Array
                         .from(new Set([
                             jobInstance.guideId,
@@ -128,7 +129,7 @@ function RightGroup(props: Props): JSX.Element {
                 <Button
                     type='link'
                     className='cvat-annotation-header-guide-button cvat-annotation-header-button'
-                    onClick={openGuide}
+                    onClick={() => openGuide()}
                 >
                     <Icon component={GuideIcon} />
                     {t('Guide')}
