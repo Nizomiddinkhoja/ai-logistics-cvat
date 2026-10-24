@@ -10,6 +10,7 @@ import classNames from 'classnames';
 import { ActiveControl, ColorBy } from 'reducers';
 import { AudioIntervalState, Label } from 'cvat-core-wrapper';
 import { hexToRgbComponents } from 'audio/utils/hex-color';
+import { t } from 'i18n';
 import { getRegionItemColor } from './audio-region-colors';
 import AudioIntervalActions, { AudioIntervalActionShortcuts } from './audio-interval-actions';
 import AudioIntervalHeader from './audio-interval-header';
@@ -223,7 +224,7 @@ export default function AudioRegionsList(props: Props): JSX.Element {
     );
 
     if (!intervals.length) {
-        const description = filtersActive ? 'No intervals match filters' : 'No intervals created';
+        const description = filtersActive ? t('No intervals match filters') : t('No intervals created');
         return (
             <div className='cvat-audio-regions-list-wrapper'>
                 {header}

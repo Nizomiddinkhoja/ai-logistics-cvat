@@ -12,6 +12,7 @@ import { ShapeType } from 'cvat-core-wrapper';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
 import DrawShapePopoverContainer from 'containers/annotation-page/standard-workspace/controls-side-bar/draw-shape-popover';
+import { t } from 'i18n';
 import withVisibilityHandling from './handle-popover-visibility';
 
 export interface Props {
@@ -47,7 +48,7 @@ function DrawMaskControl(props: Props): JSX.Element {
             placement='right'
             content={<DrawShapePopoverContainer shapeType={ShapeType.MASK} />}
         >
-            <CVATTooltip title='Draw a mask' placement='right'>
+            <CVATTooltip title={t('Draw a mask')} placement='right'>
                 <Icon {...dynamicIconProps} component={BrushIcon} />
             </CVATTooltip>
         </CustomPopover>

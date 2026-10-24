@@ -416,7 +416,7 @@ class ImportRequestId(
     RequestIdWithOptionalFormat,
 ):
     ACTION_ALLOWED_VALUES: ClassVar[tuple[str]] = ("create", "import")
-    SUBRESOURCE_ALLOWED_VALUES: ClassVar[tuple[str]] = ("backup", "dataset", "annotations")
+    SUBRESOURCE_ALLOWED_VALUES: ClassVar[tuple[str]] = ("backup", "dataset", "annotations", "data")
     QUEUE_SELECTORS: ClassVar[tuple[str]] = ACTION_ALLOWED_VALUES
 
     # will be deleted after several releases

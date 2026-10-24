@@ -6,6 +6,7 @@ import React from 'react';
 
 import { AudioIntervalState, Label } from 'cvat-core-wrapper';
 import { formatMilliseconds, formatTimeShort } from 'audio/utils/format-audio-time';
+import { t } from 'i18n';
 import { intervalDurationSeconds, intervalEndSeconds, intervalStartSeconds } from './utils/audio-interval';
 import AudioIntervalLabelSelector from './audio-interval-label-selector';
 
@@ -48,7 +49,7 @@ export default function AudioIntervalHeader({
                         onChangeLabel={onChangeLabel}
                     />
                     {source ? (
-                        <span className='cvat-audio-interval-header-source' title={`Source: ${source}`}>
+                        <span className='cvat-audio-interval-header-source' title={t('Source: {{source}}', { source })}>
                             ({source})
                         </span>
                     ) : null}

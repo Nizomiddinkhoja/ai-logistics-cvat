@@ -11,6 +11,7 @@ import Spin from 'antd/lib/spin';
 import Popover from 'antd/lib/popover';
 import Icon, { UpOutlined } from '@ant-design/icons';
 import notification from 'antd/lib/notification';
+import message from 'antd/lib/message';
 import debounce from 'lodash/debounce';
 
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
@@ -19,7 +20,7 @@ import {
 } from 'reducers';
 import { EventScope } from 'cvat-logger';
 import {
-    Canvas, HighlightSeverity, CanvasHint, RenderData,
+    Canvas, CanvasMode, HighlightSeverity, CanvasHint, RenderData,
 } from 'cvat-canvas-wrapper';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import {
@@ -43,6 +44,11 @@ import {
     sliceAnnotationsAsync,
     splitAnnotationsAsync,
     activateObject,
+    toggleObjectSelection,
+    selectObjectsRange,
+    appendObjectsToSelection,
+    clearObjectsSelection,
+    copyObjectsFromPreviousFrameAsync,
     updateCanvasContextMenu,
     fetchAnnotationsAsync,
     getDataFailed,
@@ -65,10 +71,12 @@ import {
 import { reviewActions } from 'actions/review-actions';
 
 import { filterAnnotations } from 'utils/filter-annotations';
+import shiftObjectPoints from 'utils/shift-object-points';
 import { ImageFilter } from 'utils/image-processing';
 import { ShortcutScope } from 'utils/enums';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import { subKeyMap } from 'utils/component-subkeymap';
+import { t } from 'i18n';
 import ImageSetupsContent from './image-setups-content';
 import CanvasTipsComponent from './canvas-hints';
 
@@ -129,6 +137,7 @@ interface StateToProps {
     imageFilters: ImageFilter[];
     activeControl: ActiveControl;
     activeObjectHidden: boolean;
+    selectedStateIDs: number[];
 }
 
 interface DispatchToProps {
@@ -158,6 +167,11 @@ interface DispatchToProps {
     onCanvasErrorOccurred(error: Error): void;
     onStartIssue(position: number[]): void;
     onUpdateEditedObject(editedState: ObjectState | null): void;
+    onToggleObjectSelection(clientID: number): void;
+    onSelectObjectsRange(clientID: number): void;
+    onAppendObjectsToSelection(clientIDs: number[]): void;
+    onClearObjectsSelection(): void;
+    onCopyObjectsFromPreviousFrame(): Promise<number>;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -180,6 +194,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 zLayer: { cur: currentZLayer },
                 highlightedConflict,
                 renderData,
+                selectedStateIDs,
             },
             sidebarCollapsed,
             workspace,
@@ -277,33 +292,46 @@ function mapStateToProps(state: CombinedState): StateToProps {
         highlightedConflict,
         imageFilters,
         activeObjectHidden,
+        selectedStateIDs,
     };
 }
 
 const componentShortcuts = {
     SWITCH_AUTOMATIC_BORDERING: {
-        name: 'Toggle snap to contour',
-        description: 'Toggle automatic snap to contour for polygons and polylines during drawing/editing',
+        name: t('Toggle snap to contour'),
+        description: t('Toggle automatic snap to contour for polygons and polylines during drawing/editing'),
         sequences: [],
         scope: ShortcutScope.STANDARD_WORKSPACE,
     },
     SWITCH_SNAP_TO_POINT: {
-        name: 'Toggle snap to point',
-        description: 'Toggle automatic snapping to nearby points',
+        name: t('Toggle snap to point'),
+        description: t('Toggle automatic snapping to nearby points'),
         sequences: [],
         scope: ShortcutScope.STANDARD_WORKSPACE,
     },
     NEXT_OBJECT: {
-        name: 'Next object',
-        description: 'Go to the next object and center it on the canvas',
+        name: t('Next object'),
+        description: t('Go to the next object and center it on the canvas'),
         sequences: ['tab'],
         scope: ShortcutScope.ANNOTATION_PAGE,
     },
     PREVIOUS_OBJECT: {
-        name: 'Previous object',
-        description: 'Go to the previous object and center it on the canvas',
+        name: t('Previous object'),
+        description: t('Go to the previous object and center it on the canvas'),
         sequences: ['shift+tab'],
         scope: ShortcutScope.ANNOTATION_PAGE,
+    },
+    COPY_FROM_PREVIOUS_FRAME: {
+        name: t('Copy objects from the previous frame'),
+        description: t('Copy every shape drawn on the previous frame to the current one'),
+        sequences: ['r'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
+    },
+    CLEAR_OBJECTS_SELECTION: {
+        name: t('Clear selection'),
+        description: t('Drop the current multi selection of objects'),
+        sequences: ['ctrl+d'],
+        scope: ShortcutScope.STANDARD_WORKSPACE,
     },
 };
 
@@ -396,6 +424,21 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onStartIssue(position: number[]): void {
             dispatch(reviewActions.startIssue(position));
+        },
+        onToggleObjectSelection(clientID: number): void {
+            dispatch(toggleObjectSelection(clientID));
+        },
+        onSelectObjectsRange(clientID: number): void {
+            dispatch(selectObjectsRange(clientID));
+        },
+        onAppendObjectsToSelection(clientIDs: number[]): void {
+            dispatch(appendObjectsToSelection(clientIDs));
+        },
+        onClearObjectsSelection(): void {
+            dispatch(clearObjectsSelection());
+        },
+        onCopyObjectsFromPreviousFrame(): Promise<number> {
+            return dispatch(copyObjectsFromPreviousFrameAsync());
         },
         onUpdateEditedObject(editedState: ObjectState | null): void {
             dispatch(updateEditedStateAsync(editedState));
@@ -503,6 +546,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             imageFilters,
             focusedObjectPadding,
             renderData,
+            selectedStateIDs,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -624,6 +668,10 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             canvasInstance.bitmap(showBitmap);
         }
 
+        if (prevProps.selectedStateIDs !== selectedStateIDs) {
+            canvasInstance.selectObjects(selectedStateIDs);
+        }
+
         if (prevProps.frameAngle !== frameAngle) {
             canvasInstance.rotate(frameAngle);
             if (prevProps.frameData === frameData) {
@@ -659,6 +707,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         canvasInstance.html().removeEventListener('canvas.dragshape', this.onCanvasShapeDragged as EventListener);
         canvasInstance.html().removeEventListener('canvas.resizeshape', this.onCanvasShapeResized as EventListener);
         canvasInstance.html().removeEventListener('canvas.clicked', this.onCanvasShapeClicked);
+        canvasInstance.html().removeEventListener('canvas.selected', this.onCanvasObjectsSelected);
+        canvasInstance.html().removeEventListener('canvas.dragmultiple', this.onCanvasObjectsDragged);
         canvasInstance.html().removeEventListener('canvas.drawn', this.onCanvasShapeDrawn);
         canvasInstance.html().removeEventListener('canvas.merged', this.onCanvasObjectsMerged);
         canvasInstance.html().removeEventListener('canvas.grouped', this.onCanvasObjectsGrouped);
@@ -685,7 +735,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     private onCanvasWarningOccurrence = (event: any): void => {
         const { message, domain } = event.detail;
         notification.warning({
-            message: domain ? `${domain}` : 'Warning',
+            message: domain ? `${domain}` : t('Warning'),
             description: message,
             duration: 5,
             className: 'cvat-notification-warning-canvas',
@@ -810,9 +860,16 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     };
 
     private onCanvasMouseDown = (e: MouseEvent): void => {
-        const { workspace, activatedStateID, onActivateObject } = this.props;
+        const {
+            workspace, activatedStateID, selectedStateIDs, onActivateObject, onClearObjectsSelection,
+        } = this.props;
 
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
+            // a plain click on the image means "I am done with these objects"
+            if (selectedStateIDs.length && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+                onClearObjectsSelection();
+            }
+
             // Native double-click selection can escape from the SVG canvas to nearby UI text.
             // Prevent only repeated SVG clicks, keeping regular canvas clicks and drags unchanged.
             if (e.detail > 1) {
@@ -862,8 +919,62 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
     };
 
     private onCanvasShapeClicked = (e: any): void => {
-        const { onExpandObject } = this.props;
-        scrollAndExpandState(e.detail.state, onExpandObject);
+        const {
+            workspace, onExpandObject, onToggleObjectSelection, onSelectObjectsRange,
+        } = this.props;
+        const { state, ctrlKey, shiftKey } = e.detail;
+
+        if (workspace === Workspace.STANDARD && (ctrlKey || shiftKey)) {
+            // skeleton elements are selected together with their parent
+            const clientID = state.parentID ?? state.clientID;
+            if (typeof clientID === 'number') {
+                if (ctrlKey) {
+                    onToggleObjectSelection(clientID);
+                } else {
+                    onSelectObjectsRange(clientID);
+                }
+
+                return;
+            }
+        }
+
+        scrollAndExpandState(state, onExpandObject);
+    };
+
+    // a drag of one selected object moves the whole selection
+    private onCanvasObjectsDragged = (e: any): void => {
+        const { annotations, onUpdateAnnotations } = this.props;
+        const { clientIDs, dx, dy } = e.detail;
+
+        if (!dx && !dy) {
+            return;
+        }
+
+        const moved = annotations.filter((state: ObjectState): boolean => (
+            (clientIDs as number[]).includes(state.clientID as number) && !state.lock
+        ));
+
+        if (moved.length) {
+            moved.forEach((state: ObjectState): void => shiftObjectPoints(state, dx, dy));
+            onUpdateAnnotations(moved);
+        }
+    };
+
+    private onCanvasObjectsSelected = (e: any): void => {
+        const { workspace, onAppendObjectsToSelection } = this.props;
+        const { states } = e.detail;
+
+        if (workspace !== Workspace.STANDARD) {
+            return;
+        }
+
+        const clientIDs = (states as ObjectState[])
+            .map((state: ObjectState): number | null => state.clientID)
+            .filter((clientID: number | null): clientID is number => clientID !== null);
+
+        if (clientIDs.length) {
+            onAppendObjectsToSelection(clientIDs);
+        }
     };
 
     private onCanvasShapeDeactivated = (e: any): void => {
@@ -1056,7 +1167,7 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                                 } catch (error: any) {
                                     notification.error({
                                         description: error.toString(),
-                                        message: 'Image processing error occurred',
+                                        message: t('Image processing error occurred'),
                                         className: 'cvat-notification-notice-image-processing-error',
                                     });
                                 }
@@ -1137,6 +1248,8 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
         canvasInstance.html().addEventListener('canvas.dragshape', this.onCanvasShapeDragged as EventListener);
         canvasInstance.html().addEventListener('canvas.resizeshape', this.onCanvasShapeResized as EventListener);
         canvasInstance.html().addEventListener('canvas.clicked', this.onCanvasShapeClicked);
+        canvasInstance.html().addEventListener('canvas.selected', this.onCanvasObjectsSelected);
+        canvasInstance.html().addEventListener('canvas.dragmultiple', this.onCanvasObjectsDragged);
         canvasInstance.html().addEventListener('canvas.drawn', this.onCanvasShapeDrawn);
         canvasInstance.html().addEventListener('canvas.merged', this.onCanvasObjectsMerged);
         canvasInstance.html().addEventListener('canvas.grouped', this.onCanvasObjectsGrouped);
@@ -1162,11 +1275,15 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
             annotations,
             activatedStateID,
             focusedObjectPadding,
+            selectedStateIDs,
+            workspace,
             onSwitchAutomaticBordering,
             onSwitchSnapToPoint,
             onOpenLayerStack,
             onActivateObject,
             onExpandObject,
+            onClearObjectsSelection,
+            onCopyObjectsFromPreviousFrame,
         } = this.props;
         const { canvasInstance } = this.props as { canvasInstance: Canvas };
 
@@ -1216,6 +1333,29 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                 preventDefault(event);
                 navigateObject(-1);
             },
+            COPY_FROM_PREVIOUS_FRAME: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+
+                if (workspace !== Workspace.STANDARD || !canvasIsReady ||
+                    canvasInstance.mode() !== CanvasMode.IDLE) {
+                    return;
+                }
+
+                onCopyObjectsFromPreviousFrame().then((count: number): void => {
+                    if (count) {
+                        message.success(t('{{countValue}} object(s) copied from the previous frame', { countValue: count }));
+                    } else {
+                        message.info(t('There is nothing to copy from the previous frame'));
+                    }
+                });
+            },
+            CLEAR_OBJECTS_SELECTION: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+
+                if (selectedStateIDs.length) {
+                    onClearObjectsSelection();
+                }
+            },
         };
 
         return (
@@ -1254,11 +1394,11 @@ class CanvasWrapperComponent extends React.PureComponent<Props> {
                     <UpOutlined className='cvat-canvas-image-setups-trigger' />
                 </Popover>
 
-                <CVATTooltip title={`Open layer stack. Current layer ${currentZLayer}`}>
+                <CVATTooltip title={t('Open layer stack. Current layer {{currentZLayer}}', { currentZLayer })}>
                     <button
                         className='cvat-canvas-layer-stack-trigger'
                         type='button'
-                        aria-label={`Open layer stack. Current layer ${currentZLayer}`}
+                        aria-label={t('Open layer stack. Current layer {{currentZLayer}}', { currentZLayer })}
                         onClick={(): void => onOpenLayerStack(sidebarCollapsed)}
                     >
                         <Icon component={LayerStackIcon} />

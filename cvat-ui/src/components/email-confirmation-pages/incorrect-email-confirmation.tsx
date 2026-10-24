@@ -6,6 +6,7 @@ import React from 'react';
 import { Col, Row } from 'antd/lib/grid';
 import Layout from 'antd/lib/layout';
 import Button from 'antd/lib/button';
+import { t } from 'i18n';
 import './styles.scss';
 
 const { Content } = Layout;
@@ -21,13 +22,13 @@ export default function IncorrectEmailConfirmationPage(): JSX.Element {
                 <Row justify='center' align='middle' id='incorrect-email-confirmation-page-container'>
                     <Col>
                         <h1>
-                            This e-mail confirmation link expired or is invalid.
+                            {t('This e-mail confirmation link expired or is invalid.')}
                         </h1>
                         <p>
-                            Please issue a new e-mail confirmation request.
+                            {t('Please issue a new e-mail confirmation request.')}
                         </p>
                         <Button className='cvat-go-to-login-button' type='link' href='/auth/login'>
-                            Go to login page
+                            {t('Go to login page')}
                         </Button>
                     </Col>
                 </Row>

@@ -19,6 +19,7 @@ import {
 import type { IntelligentScissors, OpenCVTracker } from 'utils/opencv-wrapper/opencv-wrapper';
 import { KeyMap, KeyMapItem } from 'utils/mousetrap-react';
 import { ImageFilter } from 'utils/image-processing';
+import { ObjectsClipboard } from 'utils/objects-clipboard';
 
 export interface AudioState {
     player: {
@@ -172,6 +173,10 @@ export interface TasksState {
     moveTask: {
         modalVisible: boolean;
         taskId: number | null;
+    };
+    appendData: {
+        modalVisible: boolean;
+        taskInstance: Task | null;
     };
     gettingQuery: TasksQuery;
     count: number;
@@ -708,6 +713,8 @@ export interface NotificationsState {
             splitting: null | ErrorState;
             removing: null | ErrorState;
             propagating: null | ErrorState;
+            copyingFromPreviousFrame: null | ErrorState;
+            pasting: null | ErrorState;
             collectingStatistics: null | ErrorState;
             savingJob: null | ErrorState;
             uploadAnnotations: null | ErrorState;
@@ -968,6 +975,12 @@ export interface AnnotationState {
         activatedStateID: number | null;
         activatedElementID: number | null;
         activatedAttributeID: number | null;
+        // objects included into the current multi selection (ctrl+click, shift+click, shift+drag)
+        selectedStateIDs: number[];
+        // the object a shift+click range selection is counted from
+        selectionAnchorStateID: number | null;
+        // objects copied by a user, kept in the browser storage to survive job and task changes
+        objectsClipboard: ObjectsClipboard;
         highlightedConflict: QualityConflict | null;
         collapsed: Record<number, boolean>;
         collapsedAll: boolean;

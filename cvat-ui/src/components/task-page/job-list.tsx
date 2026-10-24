@@ -24,6 +24,7 @@ import { useResourceQuery } from 'utils/hooks';
 import BulkWrapper from 'components/bulk-wrapper';
 import { selectionActions } from 'actions/selection-actions';
 import JobsCSVExportButton from 'components/jobs-page/jobs-csv-export-button';
+import { t } from 'i18n';
 import {
     localStorageRecentKeyword, localStorageRecentCapacity, predefinedFilterValues, config,
 } from './jobs-filter-configuration';
@@ -130,7 +131,7 @@ function JobListComponent(props: Readonly<Props>): JSX.Element {
             <div className='cvat-jobs-list-wrapper'>
                 <Row>
                     <Col>
-                        <Text className='cvat-text-color cvat-jobs-header'> Jobs </Text>
+                        <Text className='cvat-text-color cvat-jobs-header'> {t('Jobs')} </Text>
                         <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                     </Col>
                 </Row>
@@ -201,7 +202,7 @@ function JobListComponent(props: Readonly<Props>): JSX.Element {
                     </Col>
                 </div>
             ) : (
-                <Empty description='No jobs found' />
+                <Empty description={t('No jobs found')} />
             )}
             <Row justify='center' align='middle'>
                 <Col>

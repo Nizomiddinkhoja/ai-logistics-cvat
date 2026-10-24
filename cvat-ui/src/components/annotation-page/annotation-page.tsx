@@ -27,6 +27,7 @@ import { usePrevious } from 'utils/hooks';
 import EventRecorder from 'utils/event-recorder';
 import { readLatestFrame } from 'utils/remember-latest-frame';
 import { EventScope } from 'cvat-core/src/enums';
+import { t } from 'i18n';
 import SearchFramesModal from './top-bar/search-modal';
 
 interface Props {
@@ -85,10 +86,10 @@ export default function AnnotationPageComponent(props: Props): JSX.Element {
                 const notificationKey = `cvat-notification-continue-job-${job.id}`;
                 notification.info({
                     key: notificationKey,
-                    message: `You finished working on frame ${latestFrame}`,
+                    message: t('You finished working on frame {{latestFrame}}', { latestFrame }),
                     description: (
                         <span>
-                            Press
+                            {t('Press')}
                             <Button
                                 className='cvat-notification-continue-job-button'
                                 type='link'
@@ -97,9 +98,9 @@ export default function AnnotationPageComponent(props: Props): JSX.Element {
                                     notification.destroy(notificationKey);
                                 }}
                             >
-                                here
+                                {t('here')}
                             </Button>
-                            if you would like to continue
+                            {t('if you would like to continue')}
                         </span>
                     ),
                     placement: 'topRight',
@@ -111,16 +112,14 @@ export default function AnnotationPageComponent(props: Props): JSX.Element {
 
             if (!job.labels.length) {
                 notification.warning({
-                    message: 'No labels',
+                    message: t('No labels'),
                     description: (
                         <span>
-                            {`${job.projectId ? 'Project' : 'Task'} ${
-                                job.projectId || job.taskId
-                            } does not contain any labels. `}
+                            {t('{{value}} {{value2}} does not contain any labels. ', { value: job.projectId ? t('Project') : t('Task'), value2: job.projectId || job.taskId })}
                             <a href={`/${job.projectId ? 'projects' : 'tasks'}/${job.projectId || job.taskId}/`}>
-                                Add
+                                {t('Add')}
                             </a>
-                            {' the first one for editing annotation.'}
+                            {t(' the first one for editing annotation.')}
                         </span>
                     ),
                     placement: 'topRight',

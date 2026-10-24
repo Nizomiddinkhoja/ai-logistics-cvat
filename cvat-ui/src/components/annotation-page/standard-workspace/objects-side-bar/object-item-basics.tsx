@@ -17,6 +17,7 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 import LabelSelector from 'components/label-selector/label-selector';
 import type { OrientationAngle } from 'utils/change-object-orientation';
 import { ObjectType, ShapeType } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import ItemMenu from './object-item-menu';
 import ColorPicker from './color-picker';
 
@@ -67,17 +68,17 @@ function LayerPicker(props: LayerPickerProps): JSX.Element {
                         type='primary'
                         onClick={submitLayer}
                     >
-                        OK
+                        {t('OK')}
                     </Button>
                 </div>
             )}
             title={(
                 <Row justify='space-between' align='middle'>
                     <Col span={14}>
-                        <Text strong>Move to layer</Text>
+                        <Text strong>{t('Move to layer')}</Text>
                     </Col>
                     <Col span={4}>
-                        <CVATTooltip title='Close'>
+                        <CVATTooltip title={t('Close')}>
                             <Button
                                 className='cvat-object-item-menu-to-layer-close-button'
                                 type='link'
@@ -288,7 +289,7 @@ function ItemTopComponent(props: Props): JSX.Element {
         <Row align='middle'>
             <Col span={10}>
                 <Text style={{ fontSize: 12 }}>{clientID}</Text>
-                {isGroundTruth ? <Text style={{ fontSize: 12 }}>&nbsp;GT</Text> : null}
+                {isGroundTruth ? <Text style={{ fontSize: 12 }}>&nbsp;{t('GT')}</Text> : null}
                 <br />
                 <Text
                     type='secondary'
@@ -299,7 +300,7 @@ function ItemTopComponent(props: Props): JSX.Element {
                 </Text>
             </Col>
             <Col span={12}>
-                <CVATTooltip title='Change current label'>
+                <CVATTooltip title={t('Change current label')}>
                     <LabelSelector
                         disabled={locked || shapeType === ShapeType.SKELETON}
                         size='small'

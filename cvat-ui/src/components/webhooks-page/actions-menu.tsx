@@ -14,6 +14,7 @@ import { Webhook } from 'cvat-core-wrapper';
 import { CombinedState } from 'reducers';
 import { deleteWebhookAsync } from 'actions/webhooks-actions';
 import { makeBulkOperationAsync } from 'actions/bulk-actions';
+import { t } from 'i18n';
 
 interface WebhookActionsMenuProps {
     webhookInstance: Webhook;
@@ -47,31 +48,31 @@ export default function WebhookActionsMenu(props: Readonly<WebhookActionsMenuPro
             async (webhook) => {
                 await dispatch(deleteWebhookAsync(webhook));
             },
-            (webhook, idx, total) => `Deleting webhook #${webhook.id} (${idx + 1}/${total})`,
+            (webhook, idx, total) => t('Deleting webhook #{{id}} ({{value}}/{{total}})', { id: webhook.id, value: idx + 1, total }),
         ));
     }, [dispatch, webhookInstance]);
 
     const menuItems: MenuProps['items'] = [
         {
             key: 'edit',
-            label: 'Edit',
+            label: t('Edit'),
             onClick: onEdit,
             disabled: isBulk,
         },
         {
             key: 'delete',
-            label: isBulk ? `Delete (${selectedIds.length})` : 'Delete',
+            label: isBulk ? t('Delete ({{length}})', { length: selectedIds.length }) : t('Delete'),
             onClick: isBulk ? () => {
                 Modal.confirm({
-                    title: `Are you sure you want to remove ${selectedIds.length} webhooks?`,
-                    content: 'They will stop notifying the specified URLs about listed events',
+                    title: t('Are you sure you want to remove {{length}} webhooks?', { length: selectedIds.length }),
+                    content: t('They will stop notifying the specified URLs about listed events'),
                     className: 'cvat-modal-confirm-remove-webhook',
                     onOk: () => onDelete(),
                 });
             } : () => {
                 Modal.confirm({
-                    title: 'Are you sure you want to remove the hook?',
-                    content: 'It will stop notificating the specified URL about listed events',
+                    title: t('Are you sure you want to remove the hook?'),
+                    content: t('It will stop notificating the specified URL about listed events'),
                     className: 'cvat-modal-confirm-remove-webhook',
                     onOk: onDelete,
                 });

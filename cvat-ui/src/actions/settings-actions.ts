@@ -448,6 +448,16 @@ export function resetImageFilters(): AnyAction {
     };
 }
 
+/**
+ * Bumped whenever default key sequences change in a way that stored settings can not describe.
+ * Every version lists the shortcuts whose stored sequences must be dropped on restore.
+ */
+const SHORTCUTS_SETTINGS_VERSION = 1;
+const SHORTCUTS_MIGRATIONS: Record<number, string[]> = {
+    // `R` became "copy objects from the previous frame", `Next keyframe` moved to `Shift+R`
+    1: ['NEXT_KEY_FRAME', 'COPY_FROM_PREVIOUS_FRAME', 'CLEAR_OBJECTS_SELECTION'],
+};
+
 export function restoreSettingsAsync(): ThunkAction {
     return async (dispatch, getState): Promise<void> => {
         const state: CombinedState = getState();
@@ -489,10 +499,22 @@ export function restoreSettingsAsync(): ThunkAction {
 
         if ('shortcuts' in loadedSettings) {
             const updateKeyMap = structuredClone(shortcuts.keyMap);
+            const storedKeyMap = loadedSettings.shortcuts.keyMap as Record<string, { sequences: string[] }>;
+            const storedVersion: number = loadedSettings.shortcuts.version ?? 0;
 
-            Object.entries(loadedSettings.shortcuts.keyMap).forEach(([key, value]) => {
-                if (key in updateKeyMap) {
-                    updateKeyMap[key].sequences = (value as { sequences: string[] }).sequences;
+            // Sequences stored by an older client for these shortcuts describe defaults that
+            // no longer exist. Restoring them would shadow the shortcuts that own those keys now,
+            // so they are dropped once and the current defaults are used instead. Every other
+            // customization a user made is kept.
+            const outdatedShortcuts = new Set(
+                Object.entries(SHORTCUTS_MIGRATIONS)
+                    .filter(([version]) => Number(version) > storedVersion)
+                    .flatMap(([, shortcutIDs]) => shortcutIDs),
+            );
+
+            Object.entries(storedKeyMap).forEach(([key, value]) => {
+                if (key in updateKeyMap && !outdatedShortcuts.has(key)) {
+                    updateKeyMap[key].sequences = value.sequences;
                 }
             });
 
@@ -509,6 +531,7 @@ export function updateCachedSettings(settings: CombinedState['settings'], shortc
         player: settings.player,
         workspace: settings.workspace,
         shortcuts: {
+            version: SHORTCUTS_SETTINGS_VERSION,
             keyMap: Object.entries(shortcuts.keyMap).reduce<Record<string, { sequences: string[] }>>(
                 (acc, [key, value]) => {
                     if (key in shortcuts.defaultState) {

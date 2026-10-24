@@ -10,6 +10,7 @@ import { LockOutlined } from '@ant-design/icons';
 import Input from 'antd/lib/input';
 
 import { validateConfirmation, validatePassword } from 'components/register-page/register-form';
+import { t } from 'i18n';
 
 export interface ResetPasswordConfirmData {
     newPassword1: string;
@@ -43,14 +44,14 @@ function ResetPasswordConfirmFormComponent({ fetching, onSubmit }: Props): JSX.E
                 rules={[
                     {
                         required: true,
-                        message: 'Please input new password!',
+                        message: t('Please input new password!'),
                     }, validatePassword,
                 ]}
             >
                 <Input.Password
                     autoComplete='new-password'
                     prefix={<LockOutlined style={{ color: 'rgba(0, 0, 0, 0.25)' }} />}
-                    placeholder='New password'
+                    placeholder={t('New password')}
                 />
             </Form.Item>
 
@@ -61,14 +62,14 @@ function ResetPasswordConfirmFormComponent({ fetching, onSubmit }: Props): JSX.E
                 rules={[
                     {
                         required: true,
-                        message: 'Please confirm your new password!',
+                        message: t('Please confirm your new password!'),
                     }, validateConfirmation('newPassword1'),
                 ]}
             >
                 <Input.Password
                     autoComplete='new-password'
                     prefix={<LockOutlined style={{ color: 'rgba(0, 0, 0, 0.25)' }} />}
-                    placeholder='Confirm new password'
+                    placeholder={t('Confirm new password')}
                 />
             </Form.Item>
 
@@ -80,7 +81,7 @@ function ResetPasswordConfirmFormComponent({ fetching, onSubmit }: Props): JSX.E
                     loading={fetching}
                     disabled={fetching}
                 >
-                    Change password
+                    {t('Change password')}
                 </Button>
             </Form.Item>
         </Form>

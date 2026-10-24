@@ -16,6 +16,7 @@ import {
 } from 'components/resource-sorting-filtering';
 import { WebhooksQuery } from 'reducers';
 import dimensions from 'utils/dimensions';
+import { t } from 'i18n';
 import {
     localStorageRecentKeyword, localStorageRecentCapacity, config,
 } from './webhooks-filter-configuration';
@@ -59,7 +60,7 @@ export default function TopBarComponent(props: Readonly<VisibleTopBarProps>): JS
                                 }}
                                 defaultValue={query.search ?? ''}
                                 className='cvat-webhooks-page-search-bar'
-                                placeholder='Search ...'
+                                placeholder={t('Search ...')}
                             />
                             <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                         </div>

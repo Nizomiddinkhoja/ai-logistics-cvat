@@ -13,6 +13,7 @@ import Spin from 'antd/lib/spin';
 import { CombinedState, SelectedResourceType } from 'reducers';
 import { selectionActions } from 'actions/selection-actions';
 import { getOrganizationMembersAsync } from 'actions/organization-actions';
+import { t } from 'i18n';
 import TopBarComponent from './top-bar';
 import MembersList from './members-list';
 
@@ -76,7 +77,7 @@ function OrganizationPage(): JSX.Element | null {
     return (
         <div className='cvat-organization-page'>
             {!organization ? (
-                <Empty description='You are not in an organization' />
+                <Empty description={t('You are not in an organization')} />
             ) : (
                 <>
                     <TopBarComponent

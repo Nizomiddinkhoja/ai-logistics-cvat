@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
+import { t } from 'i18n';
 
 export enum AudioRegionsOrdering {
     INSERTION = 'Insertion order',
@@ -60,24 +61,24 @@ function AudioRegionsListHeader(props: Props): JSX.Element {
         <div className='cvat-audio-regions-list-header'>
             <Row justify='space-between' align='middle'>
                 <Col>
-                    <Text>{`Items: ${count}`}</Text>
+                    <Text>{t('Items: {{countValue}}', { countValue: count })}</Text>
                 </Col>
                 <Col className='cvat-audio-regions-list-header-actions'>
-                    <CVATTooltip title={`Switch lock for all ${switchLockAllShortcut}`}>
+                    <CVATTooltip title={t('Switch lock for all {{switchLockAllShortcut}}', { switchLockAllShortcut })}>
                         {allLocked ? (
                             <LockFilled onClick={onUnlockAll} />
                         ) : (
                             <UnlockOutlined onClick={onLockAll} />
                         )}
                     </CVATTooltip>
-                    <CVATTooltip title={`Switch pin for all ${switchPinAllShortcut}`}>
+                    <CVATTooltip title={t('Switch pin for all {{switchPinAllShortcut}}', { switchPinAllShortcut })}>
                         {allPinned ? (
                             <PushpinFilled onClick={onUnpinAll} />
                         ) : (
                             <PushpinOutlined onClick={onPinAll} />
                         )}
                     </CVATTooltip>
-                    <CVATTooltip title={`Switch hidden for all ${switchHiddenAllShortcut}`}>
+                    <CVATTooltip title={t('Switch hidden for all {{switchHiddenAllShortcut}}', { switchHiddenAllShortcut })}>
                         {allHidden ? (
                             <EyeInvisibleFilled onClick={onShowAll} />
                         ) : (
@@ -87,7 +88,7 @@ function AudioRegionsListHeader(props: Props): JSX.Element {
                 </Col>
             </Row>
             <Row className='cvat-audio-regions-list-ordering' align='middle'>
-                <Text>Sort by</Text>
+                <Text>{t('Sort by')}</Text>
                 <Select
                     size='small'
                     className='cvat-audio-regions-list-ordering-selector'
@@ -96,7 +97,7 @@ function AudioRegionsListHeader(props: Props): JSX.Element {
                 >
                     {Object.values(AudioRegionsOrdering).map((value) => (
                         <Select.Option key={value} value={value}>
-                            {value}
+                            {t(value)}
                         </Select.Option>
                     ))}
                 </Select>

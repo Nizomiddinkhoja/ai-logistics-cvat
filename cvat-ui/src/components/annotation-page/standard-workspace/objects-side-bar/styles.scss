@@ -520,6 +520,71 @@
     border: 2px solid rgba(0, 0, 0, 66%);
 }
 
+.cvat-objects-sidebar-state-item.cvat-objects-sidebar-state-item-selected {
+    border: 2px solid #16e7ff;
+    box-shadow: 0 0 6px rgba(22, 231, 255, 60%);
+}
+
+.cvat-objects-sidebar-selection-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    height: $grid-unit-size * 8;
+    background-color: $background-color-2;
+    padding: 0 $grid-unit-size;
+    border-bottom: 1px solid $border-color-1;
+
+    .cvat-objects-sidebar-selection-actions {
+        display: flex;
+        align-items: center;
+    }
+
+    .cvat-objects-sidebar-selection-label {
+        display: flex;
+        align-items: center;
+        gap: $grid-unit-size;
+        width: 100%;
+
+        .cvat-objects-sidebar-selection-label-selector {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+}
+
+.cvat-objects-sidebar-clipboard-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    height: $grid-unit-size * 4;
+    background-color: $background-color-2;
+    padding: 0 $grid-unit-size;
+    border-bottom: 1px solid $border-color-1;
+
+    .cvat-objects-sidebar-clipboard-actions {
+        display: flex;
+        align-items: center;
+    }
+}
+
+// the panels take their space from the list, otherwise the list overflows the sidebar
+.cvat-objects-sidebar-clipboard-panel + .cvat-objects-sidebar-states-list {
+    height: calc(100% - $grid-unit-size * 13);
+}
+
+.cvat-objects-sidebar-selection-panel + .cvat-objects-sidebar-states-list {
+    height: calc(100% - $grid-unit-size * 17);
+}
+
+.cvat-objects-sidebar-selection-panel +
+.cvat-objects-sidebar-clipboard-panel +
+.cvat-objects-sidebar-states-list {
+    height: calc(100% - $grid-unit-size * 21);
+}
+
 .cvat-objects-sidebar-state-item {
     width: 100%;
     background-color: rgba(var(--state-item-background), 1);

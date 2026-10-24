@@ -21,6 +21,10 @@ const defaultState: TasksState = {
         modalVisible: false,
         taskId: null,
     },
+    appendData: {
+        modalVisible: false,
+        taskInstance: null,
+    },
     count: 0,
     current: [],
     selected: [],
@@ -135,6 +139,15 @@ export default (state: TasksState = defaultState, action: AnyAction): TasksState
                     ...state.moveTask,
                     modalVisible: action.payload.visible,
                     taskId: action.payload.taskId,
+                },
+            };
+        }
+        case TasksActionTypes.SWITCH_APPEND_TASK_DATA_MODAL_VISIBLE: {
+            return {
+                ...state,
+                appendData: {
+                    modalVisible: action.payload.visible,
+                    taskInstance: action.payload.taskInstance,
                 },
             };
         }

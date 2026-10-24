@@ -6412,6 +6412,12 @@ paths:
         the `GET /api/requests/<rq_id>`, where **rq_id** is request ID returned for this request.
 
         Once data is attached to a task, it cannot be detached or replaced.
+
+        More images can be added to an already created 2D image task that stores
+        its files on the server. To do this, upload new image files ('client_files')
+        using the same requests. The other parameters are ignored in this case.
+        The new images are added to the end of the task, and new jobs are created for them.
+        The existing frames, jobs and annotations are not changed.
       summary: Attach data to a task
       parameters:
       - in: header

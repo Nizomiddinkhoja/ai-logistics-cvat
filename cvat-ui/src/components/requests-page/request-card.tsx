@@ -17,6 +17,7 @@ import { BaseType } from 'antd/lib/typography/Base';
 
 import { RQStatus, Request } from 'cvat-core-wrapper';
 import { useContextMenuClick } from 'utils/hooks';
+import { t } from 'i18n';
 
 import StatusMessage from './request-status';
 import RequestActionsComponent from './actions-menu';
@@ -55,13 +56,13 @@ function constructName(operation: Request['operation']): string | null {
     } = operation;
 
     if (target === 'project' && projectID) {
-        return `Project #${projectID}`;
+        return t('Project #{{projectID}}', { projectID });
     }
     if (target === 'task' && taskID) {
-        return `Task #${taskID}`;
+        return t('Task #{{taskID}}', { taskID });
     }
     if (target === 'job' && jobID) {
-        return `Job #${jobID}`;
+        return t('Job #{{jobID}}', { jobID });
     }
     return null;
 }
@@ -92,10 +93,10 @@ function constructTimestamps(request: Request): JSX.Element {
                 return (
                     <>
                         <Row>
-                            {renderEllipsisText(`Started by ${request.owner.username} on ${started}`, 'secondary')}
+                            {renderEllipsisText(t('Started by {{username}} on {{started}}', { username: request.owner.username, started }), 'secondary')}
                         </Row>
                         <Row>
-                            <Text type='secondary'>{`Expires on ${expired}`}</Text>
+                            <Text type='secondary'>{t('Expires on {{expired}}', { expired })}</Text>
                         </Row>
                     </>
                 );
@@ -103,10 +104,10 @@ function constructTimestamps(request: Request): JSX.Element {
             return (
                 <>
                     <Row>
-                        {renderEllipsisText(`Started by ${request.owner.username} on ${started}`, 'secondary')}
+                        {renderEllipsisText(t('Started by {{username}} on {{started}}', { username: request.owner.username, started }), 'secondary')}
                     </Row>
                     <Row>
-                        <Text type='secondary'>{`Finished on ${finished}`}</Text>
+                        <Text type='secondary'>{t('Finished on {{finished}}', { finished })}</Text>
                     </Row>
                 </>
             );
@@ -114,11 +115,11 @@ function constructTimestamps(request: Request): JSX.Element {
         case RQStatus.FAILED: {
             return (request.startedDate ? (
                 <Row>
-                    {renderEllipsisText(`Started by ${request.owner.username} on ${started}`, 'secondary')}
+                    {renderEllipsisText(t('Started by {{username}} on {{started}}', { username: request.owner.username, started }), 'secondary')}
                 </Row>
             ) : (
                 <Row>
-                    {renderEllipsisText(`Enqueued by ${request.owner.username} on ${created}`, 'secondary')}
+                    {renderEllipsisText(t('Enqueued by {{username}} on {{created}}', { username: request.owner.username, created }), 'secondary')}
                 </Row>
             ));
         }
@@ -126,10 +127,10 @@ function constructTimestamps(request: Request): JSX.Element {
             return (
                 <>
                     <Row>
-                        {renderEllipsisText(`Enqueued by ${request.owner.username} on ${created}`, 'secondary')}
+                        {renderEllipsisText(t('Enqueued by {{username}} on {{created}}', { username: request.owner.username, created }), 'secondary')}
                     </Row>
                     <Row>
-                        <Text type='secondary'>{`Started on ${started}`}</Text>
+                        <Text type='secondary'>{t('Started on {{started}}', { started })}</Text>
                     </Row>
                 </>
             );
@@ -137,7 +138,7 @@ function constructTimestamps(request: Request): JSX.Element {
         default: {
             return (
                 <Row>
-                    {renderEllipsisText(`Enqueued by ${request.owner.username} on ${created}`, 'secondary')}
+                    {renderEllipsisText(t('Enqueued by {{username}} on {{created}}', { username: request.owner.username, created }), 'secondary')}
                 </Row>
             );
         }
@@ -238,7 +239,7 @@ function RequestCard(props: Readonly<Props>): JSX.Element {
                             {operation?.lightweight && (
                                 <Row>
                                     <Col className='cvat-lightweight-label'>
-                                        <Text type='secondary'>Lightweight backup</Text>
+                                        <Text type='secondary'>{t('Lightweight backup')}</Text>
                                     </Col>
                                 </Row>
                             )}

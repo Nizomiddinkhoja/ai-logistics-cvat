@@ -9,6 +9,7 @@ import { Row, Col } from 'antd/lib/grid';
 import Empty from 'antd/lib/empty';
 
 import config from 'config';
+import { t } from 'i18n';
 
 export default function EmptyListComponent(): JSX.Element {
     return (
@@ -18,18 +19,18 @@ export default function EmptyListComponent(): JSX.Element {
                     <div>
                         <Row justify='center' align='middle'>
                             <Col>
-                                <Text strong>No models deployed yet...</Text>
+                                <Text strong>{t('No models deployed yet...')}</Text>
                             </Col>
                         </Row>
                         <Row justify='center' align='middle'>
                             <Col>
-                                <Text type='secondary'>To annotate your tasks automatically</Text>
+                                <Text type='secondary'>{t('To annotate your tasks automatically')}</Text>
                             </Col>
                         </Row>
                         <Row justify='center' align='middle'>
                             <Col>
-                                <Text type='secondary'>deploy a model with </Text>
-                                <a href={`${config.NUCLIO_GUIDE}`}>nuclio</a>
+                                <Text type='secondary'>{t('deploy a model with')} </Text>
+                                <a href={`${config.NUCLIO_GUIDE}`}>{t('nuclio')}</a>
                             </Col>
                         </Row>
                     </div>

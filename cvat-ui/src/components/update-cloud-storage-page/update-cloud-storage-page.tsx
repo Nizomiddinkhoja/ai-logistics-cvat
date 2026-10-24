@@ -15,6 +15,7 @@ import { CombinedState } from 'reducers';
 import { getCloudStoragesAsync } from 'actions/cloud-storage-actions';
 import CreateCloudStorageForm from 'components/create-cloud-storage-page/cloud-storage-form';
 import { CloudStorageNotFoundComponent } from 'components/common/not-found';
+import { t } from 'i18n';
 
 interface ParamType {
     id: string;
@@ -52,7 +53,7 @@ export default function UpdateCloudStoragePageComponent(): JSX.Element {
     return (
         <Row justify='center' align='top' className='cvat-update-cloud-storage-form-wrapper'>
             <Col md={20} lg={16} xl={14} xxl={9}>
-                <Text className='cvat-title'>{`Update cloud storage #${cloudStorageId}`}</Text>
+                <Text className='cvat-title'>{t('Update cloud storage #{{cloudStorageId}}', { cloudStorageId })}</Text>
                 <CreateCloudStorageForm cloudStorage={cloudStorage} />
             </Col>
         </Row>

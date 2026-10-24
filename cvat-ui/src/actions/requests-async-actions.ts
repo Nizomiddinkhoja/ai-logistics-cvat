@@ -78,6 +78,8 @@ export function getRequestsAsync(query: Partial<RequestsQuery> = {}): ThunkActio
                                 dispatch,
                                 { instance: instance as RequestInstanceType },
                             );
+                        } else if (operationTarget === 'data') {
+                            listen(rqID, dispatch);
                         }
                     } else if (operationType === 'create') {
                         if (operationTarget === 'task') {

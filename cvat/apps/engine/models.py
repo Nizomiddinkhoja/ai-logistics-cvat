@@ -536,6 +536,13 @@ class Data(models.Model):
     def get_upload_dirname(self) -> Path:
         return self.get_data_dirname() / "raw"
 
+    def get_append_dirname(self) -> Path:
+        """
+        The directory for files that are being uploaded to an already initialized task.
+        The files are moved into the upload directory only after they are validated.
+        """
+        return self.get_data_dirname() / "append"
+
     def get_raw_data_dirname(self) -> Path:
         return {
             StorageChoice.LOCAL: self.get_upload_dirname(),
@@ -1862,3 +1869,4 @@ class RequestSubresource(TextChoices):
     ANNOTATIONS = "annotations"
     DATASET = "dataset"
     BACKUP = "backup"
+    DATA = "data"

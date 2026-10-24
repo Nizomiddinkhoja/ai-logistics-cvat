@@ -913,6 +913,29 @@ export function implementTask(Task: typeof TaskClass): typeof TaskClass {
         },
     });
 
+    Object.defineProperty(Task.prototype.appendData, 'implementation', {
+        value: async function appendDataImplementation(
+            this: TaskClass,
+            clientFiles: Parameters<typeof TaskClass.prototype.appendData>[0],
+            options: Parameters<typeof TaskClass.prototype.appendData>[1],
+        ): ReturnType<typeof TaskClass.prototype.appendData> {
+            const updateStatusCallback = options?.updateStatusCallback || (() => {});
+            const rqID = await serverProxy.tasks.appendData(this.id, clientFiles, updateStatusCallback);
+            await requestsManager.listen(rqID, { callback: updateStatusCallback });
+
+            const [task] = await serverProxy.tasks.get({ id: this.id });
+            const labels = await serverProxy.labels.get({ task_id: this.id });
+            const jobs = await serverProxy.jobs.get({ task_id: this.id }, true);
+
+            return new Task({
+                ...omit(task, ['jobs', 'labels']),
+                jobs,
+                progress: task.jobs,
+                labels: labels.results,
+            });
+        },
+    });
+
     Object.defineProperty(Task.prototype.delete, 'implementation', {
         value: function deleteImplementation(
             this: TaskClass,

@@ -14,6 +14,7 @@ import {
 import { CombinedState, ModelsQuery } from 'reducers';
 import { usePlugins } from 'utils/hooks';
 import dimensions from 'utils/dimensions';
+import { t } from 'i18n';
 import {
     localStorageRecentKeyword, localStorageRecentCapacity, config,
 } from './models-filter-configuration';
@@ -60,7 +61,7 @@ export default function TopBarComponent(props: Readonly<VisibleTopBarProps>): JS
                             }}
                             defaultValue={query.search || ''}
                             className='cvat-models-page-search-bar'
-                            placeholder='Search ...'
+                            placeholder={t('Search ...')}
                         />
                         <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                     </div>

@@ -14,6 +14,8 @@ import {
     updateActiveControl as updateActiveControlAction,
     copyShape as copyShapeAction,
     activateObject as activateObjectAction,
+    toggleObjectSelection as toggleObjectSelectionAction,
+    selectObjectsRange as selectObjectsRangeAction,
     switchPropagateVisibility as switchPropagateVisibilityAction,
     switchSimplifyVisibility as switchSimplifyVisibilityAction,
     removeObject as removeObjectAction,
@@ -53,6 +55,7 @@ interface StateToProps {
     jobInstance: Job;
     frameNumber: number;
     activated: boolean;
+    selected: boolean;
     colorBy: ColorBy;
     ready: boolean;
     activeControl: ActiveControl;
@@ -73,6 +76,8 @@ interface DispatchToProps {
     changeFrame(frame: number): void;
     updateState(objectState: ObjectState): void;
     activateObject: (activatedStateID: number | null, activatedElementID: number | null) => void;
+    toggleSelection: (clientID: number) => void;
+    selectRange: (clientID: number, orderedClientIDs: number[]) => void;
     removeObject: (objectState: ObjectState) => void;
     copyShape: (objectState: ObjectState) => void;
     switchPropagateVisibility: (visible: boolean) => void;
@@ -87,6 +92,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
         annotation: {
             annotations: {
                 activatedStateID,
+                selectedStateIDs,
                 zLayer: { min: minZLayer, max: maxZLayer },
             },
             job: { attributes: jobAttributes, instance: jobInstance, labels },
@@ -117,6 +123,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
         jobInstance,
         frameNumber,
         activated: activatedStateID === clientID,
+        selected: selectedStateIDs.includes(clientID),
         minZLayer,
         maxZLayer,
         normalizedKeyMap,
@@ -138,6 +145,12 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         activateObject(activatedStateID: number | null): void {
             dispatch(activateObjectAction(activatedStateID, null, null));
+        },
+        toggleSelection(clientID: number): void {
+            dispatch(toggleObjectSelectionAction(clientID));
+        },
+        selectRange(clientID: number, orderedClientIDs: number[]): void {
+            dispatch(selectObjectsRangeAction(clientID, orderedClientIDs));
         },
         removeObject(objectState: any): void {
             dispatch(removeObjectAction(objectState, false));
@@ -481,6 +494,16 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
         }
     };
 
+    private toggleSelection = (): void => {
+        const { objectState, toggleSelection } = this.props;
+        toggleSelection(objectState.clientID as number);
+    };
+
+    private selectRange = (orderedClientIDs: number[]): void => {
+        const { objectState, selectRange } = this.props;
+        selectRange(objectState.clientID as number, orderedClientIDs);
+    };
+
     private focusAndExpand = (): void => {
         const {
             objectState, canvasInstance, focusedObjectPadding, expandObject,
@@ -581,6 +604,7 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
             objectState,
             attributes,
             activated,
+            selected,
             colorBy,
             normalizedKeyMap,
             keyMap,
@@ -599,6 +623,7 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
                     zLayerDragProps={zLayerDragProps}
                     zLayerDragging={zLayerDragging}
                     activated={activated}
+                    selected={selected}
                     objectType={objectState.objectType}
                     shapeType={objectState.shapeType}
                     clientID={objectState.clientID as number}
@@ -613,6 +638,8 @@ class ObjectItemContainer extends React.PureComponent<Props, State> {
                     labels={labels}
                     colorBy={colorBy}
                     activate={this.activate}
+                    toggleSelection={this.toggleSelection}
+                    selectRange={this.selectRange}
                     focusAndExpand={this.focusAndExpand}
                     remove={this.remove}
                     copy={this.copy}

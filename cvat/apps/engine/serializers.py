@@ -606,30 +606,62 @@ class LabelSerializer(SublabelSerializer):
                 )
 
         new_values = attr.get("values", db_attr.values)
-        if new_values != db_attr.values:
-            if db_attr.input_type in (
-                str(models.AttributeType.RADIO),
-                str(models.AttributeType.SELECT),
-            ):
-                old_values_list = cls._split_attribute_values(db_attr.values)
-                new_values_list = cls._split_attribute_values(new_values)
-                if not set(old_values_list).issubset(new_values_list):
-                    raise serializers.ValidationError(
-                        'Attribute field "values" can only be appended for radio and select attributes'
-                    )
-            elif db_attr.input_type == str(models.AttributeType.NUMBER):
-                raise serializers.ValidationError(
-                    'Attribute field "values" cannot be changed for number attributes'
-                )
+        values_changed = new_values != db_attr.values
 
         new_default_value = attr.get("default_value", db_attr.default_value)
-        if new_default_value != db_attr.default_value:
+        if values_changed and new_default_value == db_attr.default_value:
+            # The old default value could be removed from the list,
+            # use the first available value instead
+            try:
+                cls._validate_attribute_value(db_attr.input_type, new_default_value, new_values)
+            except serializers.ValidationError:
+                new_values_list = cls._split_attribute_values(new_values)
+                if new_values_list:
+                    new_default_value = new_values_list[0]
+
+        if new_default_value != db_attr.default_value or values_changed:
             cls._validate_attribute_value(db_attr.input_type, new_default_value, new_values)
+
+        if values_changed and db_attr.input_type in (
+            str(models.AttributeType.RADIO),
+            str(models.AttributeType.SELECT),
+            str(models.AttributeType.NUMBER),
+        ):
+            # Existing annotations may refer to values that are no longer allowed,
+            # replace them with the new default value to keep the data consistent
+            cls._reset_invalid_attribute_values(
+                db_attr.id, db_attr.input_type, new_values, new_default_value
+            )
 
         db_attr.name = attr.get("name", db_attr.name)
         db_attr.default_value = new_default_value
         db_attr.values = new_values
         db_attr.save()
+
+    @classmethod
+    def _reset_invalid_attribute_values(
+        cls, spec_id: int, input_type: str, values: str, default_value: str
+    ) -> None:
+        for model in (
+            models.LabeledImageAttributeVal,
+            models.LabeledShapeAttributeVal,
+            models.LabeledTrackAttributeVal,
+            models.TrackedShapeAttributeVal,
+            models.LabeledIntervalAttributeVal,
+        ):
+            queryset = model.objects.filter(spec_id=spec_id)
+            if input_type == str(models.AttributeType.NUMBER):
+                invalid_values = []
+                for value in queryset.values_list("value", flat=True).distinct():
+                    try:
+                        cls._validate_attribute_value(input_type, value, values)
+                    except serializers.ValidationError:
+                        invalid_values.append(value)
+                queryset = queryset.filter(value__in=invalid_values)
+            else:
+                queryset = queryset.exclude(value__in=cls._split_attribute_values(values))
+
+            queryset.update(value=default_value)
 
     @classmethod
     @transaction.atomic

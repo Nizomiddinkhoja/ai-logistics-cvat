@@ -21,6 +21,7 @@ import { LeftOutlined } from '@ant-design/icons';
 import { useResourceQuery } from 'utils/hooks';
 import { selectionActions } from 'actions/selection-actions';
 import { getCore, type WebhookEvent } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import WebhooksList from './webhooks-list';
 import TopBar from './top-bar';
 import EmptyWebhooksListComponent from './empty-list';
@@ -68,7 +69,7 @@ function WebhooksPage(): JSX.Element | null {
             size='large'
         >
             <LeftOutlined />
-            {projectsMatch ? 'Back to project' : 'Back to organization'}
+            {projectsMatch ? t('Back to project') : t('Back to organization')}
         </Button>
     );
 

@@ -1,0 +1,2 @@
+# user provided weights, they are copied here by deploy_ultralytics_yolo.sh
+*.pt

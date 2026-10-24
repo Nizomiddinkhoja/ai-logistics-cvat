@@ -5,63 +5,64 @@
 
 import { Config } from '@react-awesome-query-builder/antd';
 import asyncFetchUsers from 'components/resource-sorting-filtering/request-users';
+import { t } from 'i18n';
 
 export const config: Partial<Config> = {
     fields: {
         id: {
-            label: 'ID',
+            label: t('ID'),
             type: 'number',
             operators: ['equal', 'between', 'greater', 'greater_or_equal', 'less', 'less_or_equal'],
             fieldSettings: { min: 0 },
             valueSources: ['value'],
         },
         provider_type: {
-            label: 'Provider type',
+            label: t('Provider type'),
             type: 'select',
             operators: ['select_equals'],
             valueSources: ['value'],
             fieldSettings: {
                 listValues: [
-                    { value: 'AWS_S3_BUCKET', title: 'Amazon S3' },
-                    { value: 'AZURE_CONTAINER', title: 'Azure Blob Storage' },
-                    { value: 'GOOGLE_CLOUD_STORAGE', title: 'Google Cloud Storage' },
+                    { value: 'AWS_S3_BUCKET', title: t('Amazon S3') },
+                    { value: 'AZURE_CONTAINER', title: t('Azure Blob Storage') },
+                    { value: 'GOOGLE_CLOUD_STORAGE', title: t('Google Cloud Storage') },
                 ],
             },
         },
         credentials_type: {
-            label: 'Credentials type',
+            label: t('Credentials type'),
             type: 'select',
             operators: ['select_equals'],
             valueSources: ['value'],
             fieldSettings: {
                 listValues: [
-                    { value: 'KEY_SECRET_KEY_PAIR', title: 'Key & secret key' },
-                    { value: 'ACCOUNT_NAME_TOKEN_PAIR', title: 'Account name & token' },
-                    { value: 'ANONYMOUS_ACCESS', title: 'Anonymous access' },
-                    { value: 'KEY_FILE_PATH', title: 'Key file' },
+                    { value: 'KEY_SECRET_KEY_PAIR', title: t('Key & secret key') },
+                    { value: 'ACCOUNT_NAME_TOKEN_PAIR', title: t('Account name & token') },
+                    { value: 'ANONYMOUS_ACCESS', title: t('Anonymous access') },
+                    { value: 'KEY_FILE_PATH', title: t('Key file') },
                 ],
             },
         },
         resource: {
-            label: 'Resource name',
+            label: t('Resource name'),
             type: 'text',
             valueSources: ['value'],
             operators: ['like'],
         },
         name: {
-            label: 'Name',
+            label: t('Name'),
             type: 'text',
             valueSources: ['value'],
             operators: ['like'],
         },
         description: {
-            label: 'Description',
+            label: t('Description'),
             type: 'text',
             valueSources: ['value'],
             operators: ['like'],
         },
         owner: {
-            label: 'Owner',
+            label: t('Owner'),
             type: 'select',
             valueSources: ['value'],
             operators: ['select_equals'],
@@ -72,7 +73,7 @@ export const config: Partial<Config> = {
             },
         },
         updated_date: {
-            label: 'Last updated',
+            label: t('Last updated'),
             type: 'datetime',
             operators: ['between', 'greater', 'greater_or_equal', 'less', 'less_or_equal'],
         },

@@ -10,7 +10,7 @@ import Modal from 'antd/lib/modal';
 import Dropdown from 'antd/lib/dropdown';
 
 import {
-    RQStatus, Task, User, Organization, DimensionType,
+    RQStatus, Task, User, Organization, DimensionType, MediaType,
 } from 'cvat-core-wrapper';
 import { useDropdownEditField, usePlugins } from 'utils/hooks';
 
@@ -21,7 +21,7 @@ import { modelsActions } from 'actions/models-actions';
 import { mergeConsensusJobsAsync } from 'actions/consensus-actions';
 
 import {
-    deleteTaskAsync, getTasksAsync, switchMoveTaskModalVisible, updateTaskAsync,
+    deleteTaskAsync, getTasksAsync, switchAppendTaskDataModalVisible, switchMoveTaskModalVisible, updateTaskAsync,
 } from 'actions/tasks-actions';
 import { cloudStoragesActions } from 'actions/cloud-storage-actions';
 import { ResourceUpdateTypes } from 'utils/enums';
@@ -30,6 +30,7 @@ import UserSelector from 'components/task-page/user-selector';
 import OrganizationSelector from 'components/selectors/organization-selector';
 import { confirmTransferModal } from 'utils/modals';
 import { makeBulkOperationAsync } from 'actions/bulk-actions';
+import { t } from 'i18n';
 import TaskActionsItems from './actions-menu-items';
 
 interface Props {
@@ -87,8 +88,8 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
     const onMergeConsensusJobs = useCallback(() => {
         if (taskInstance.consensusEnabled) {
             Modal.confirm({
-                title: 'The consensus jobs will be merged',
-                content: 'Existing annotations in parent jobs will be updated. Continue?',
+                title: t('The consensus jobs will be merged'),
+                content: t('Existing annotations in parent jobs will be updated. Continue?'),
                 className: 'cvat-modal-confirm-consensus-merge-task',
                 onOk: () => {
                     dispatch(mergeConsensusJobsAsync(taskInstance));
@@ -97,7 +98,7 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
                     type: 'primary',
                     danger: true,
                 },
-                okText: 'Merge',
+                okText: t('Merge'),
             });
         }
     }, [taskInstance.consensusEnabled, taskInstance]);
@@ -112,6 +113,13 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
 
     const onUploadAnnotations = useCallback(() => {
         dispatch(importActions.openImportDatasetModal(taskInstance));
+    }, [taskInstance]);
+
+    const canAppendData = taskInstance.mediaType === MediaType.IMAGE &&
+        taskInstance.mode === 'annotation' &&
+        taskInstance.dimension === DimensionType.DIMENSION_2D;
+    const onAppendData = useCallback(() => {
+        dispatch(switchAppendTaskDataModalVisible(true, taskInstance));
     }, [taskInstance]);
 
     const onRunAutoAnnotation = useCallback(() => {
@@ -151,7 +159,7 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
                     await dispatch(updateTaskAsync(task, { assignee }));
                 }
             },
-            (task, idx, total) => `Updating assignee for task #${task.id} (${idx + 1}/${total})`,
+            (task, idx, total) => t('Updating assignee for task #{{id}} ({{value}}/{{total}})', { id: task.id, value: idx + 1, total }),
         ));
     }, [taskInstance, stopEditField, dispatch, collectObjectsForBulkUpdate]);
 
@@ -159,11 +167,11 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
         const tasksToDelete = currentTasks.filter((task) => selectedIds.includes(task.id));
         Modal.confirm({
             title: isBulkMode ?
-                `Delete ${tasksToDelete.length} selected tasks` :
-                `The task ${taskInstance.id} will be deleted`,
+                t('Delete {{length}} selected tasks', { length: tasksToDelete.length }) :
+                t('The task {{id}} will be deleted', { id: taskInstance.id }),
             content: isBulkMode ?
-                'All related data (images, annotations) for all selected tasks will be lost. Continue?' :
-                'All related data (images, annotations) will be lost. Continue?',
+                t('All related data (images, annotations) for all selected tasks will be lost. Continue?') :
+                t('All related data (images, annotations) will be lost. Continue?'),
             className: 'cvat-modal-confirm-delete-task',
             onOk: () => {
                 dispatch(makeBulkOperationAsync(
@@ -171,14 +179,14 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
                     async (task) => {
                         await dispatch(deleteTaskAsync(task));
                     },
-                    (task, idx, total) => `Deleting task #${task.id} (${idx + 1}/${total})`,
+                    (task, idx, total) => t('Deleting task #{{id}} ({{value}}/{{total}})', { id: task.id, value: idx + 1, total }),
                 ));
             },
             okButtonProps: {
                 type: 'primary',
                 danger: true,
             },
-            okText: isBulkMode ? 'Delete selected' : 'Delete',
+            okText: isBulkMode ? t('Delete selected') : t('Delete'),
         });
     }, [taskInstance, currentTasks, selectedIds, isBulkMode]);
 
@@ -201,7 +209,7 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
                     task.organizationId = newOrganization?.id ?? null;
                     await dispatch(updateTaskAsync(task, {}, ResourceUpdateTypes.UPDATE_ORGANIZATION));
                 },
-                (task, idx, total) => `Updating organization for task #${task.id} (${idx + 1}/${total})`,
+                (task, idx, total) => t('Updating organization for task #{{id}} ({{value}}/{{total}})', { id: task.id, value: idx + 1, total }),
             )).then((processedCount: number) => {
                 if (processedCount) {
                     // as for some tasks org has changed
@@ -268,6 +276,7 @@ function TaskActionsComponent(props: Readonly<Props>): JSX.Element {
             onMergeConsensusJobs: taskInstance.consensusEnabled ? onMergeConsensusJobs : null,
             onOpenBugTracker: taskInstance.bugTracker ? onOpenBugTracker : null,
             onUploadAnnotations,
+            onAppendData: canAppendData ? onAppendData : null,
             onExportDataset,
             onBackupTask,
             onRunAutoAnnotation,

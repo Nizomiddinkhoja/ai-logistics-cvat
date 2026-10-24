@@ -7,6 +7,7 @@ import { Row, Col } from 'antd/lib/grid';
 
 import ModelRunnerModal from 'components/model-runner-modal/model-runner-dialog';
 import MoveTaskModal from 'components/move-task-modal/move-task-modal';
+import AppendTaskDataModal from 'components/append-task-data-modal/append-task-data-modal';
 import TaskItem from 'containers/tasks-page/task-item';
 import dimensions from 'utils/dimensions';
 import { SelectedResourceType } from 'reducers';
@@ -57,6 +58,7 @@ function TaskListComponent(props: Readonly<Props>): JSX.Element {
             </Row>
             <ModelRunnerModal />
             <MoveTaskModal />
+            <AppendTaskDataModal />
         </>
     );
 }

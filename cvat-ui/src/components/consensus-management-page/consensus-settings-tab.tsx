@@ -9,6 +9,7 @@ import notification from 'antd/lib/notification';
 import { ConsensusSettings } from 'cvat-core-wrapper';
 import { formFieldsError } from 'utils/validation';
 import CVATLoadingSpinner from 'components/common/loading-spinner';
+import { t } from 'i18n';
 import ConsensusSettingsForm from './task-consensus/consensus-settings-form';
 
 interface Props {
@@ -31,7 +32,7 @@ function ConsensusSettingsTab(props: Readonly<Props>): JSX.Element | null {
             setSettings(values);
         } catch (error) {
             notification.error({
-                message: 'Could not save consensus settings',
+                message: t('Could not save consensus settings'),
                 description: formFieldsError(error).map((text: string): JSX.Element => <div>{text}</div>),
                 className: 'cvat-notification-save-consensus-settings-failed',
             });
@@ -56,7 +57,7 @@ function ConsensusSettingsTab(props: Readonly<Props>): JSX.Element | null {
                     settings={settings}
                     onSave={onSave}
                 />
-            ) : <Text>No consensus settings found</Text> }
+            ) : <Text>{t('No consensus settings found')}</Text> }
         </div>
     );
 }

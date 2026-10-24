@@ -13,6 +13,7 @@ import { ThunkDispatch, ThunkAction } from 'utils/redux';
 
 import { ValidationMode } from 'components/create-task-page/quality-configuration-form';
 import { ResourceUpdateTypes } from 'utils/enums';
+import { t } from 'i18n';
 import { getInferenceStatusAsync } from './models-actions';
 import { updateRequestProgress } from './requests-actions';
 
@@ -27,6 +28,7 @@ export enum TasksActionTypes {
     DELETE_TASK_FAILED = 'DELETE_TASK_FAILED',
     CREATE_TASK_FAILED = 'CREATE_TASK_FAILED',
     SWITCH_MOVE_TASK_MODAL_VISIBLE = 'SWITCH_MOVE_TASK_MODAL_VISIBLE',
+    SWITCH_APPEND_TASK_DATA_MODAL_VISIBLE = 'SWITCH_APPEND_TASK_DATA_MODAL_VISIBLE',
     GET_TASK_PREVIEW = 'GET_TASK_PREVIEW',
     GET_TASK_PREVIEW_SUCCESS = 'GET_TASK_PREVIEW_SUCCESS',
     GET_TASK_PREVIEW_FAILED = 'GET_TASK_PREVIEW_FAILED',
@@ -302,14 +304,14 @@ ThunkAction {
                     let helperMessage = '';
                     if (!message) {
                         if ([RQStatus.QUEUED, RQStatus.STARTED].includes(status)) {
-                            message = 'CVAT queued the task to import';
-                            helperMessage = 'You may close the window.';
+                            message = t('CVAT queued the task to import');
+                            helperMessage = t('You may close the window.');
                         } else if (status === RQStatus.FAILED) {
-                            message = 'Images processing failed';
+                            message = t('Images processing failed');
                         } else if (status === RQStatus.FINISHED) {
-                            message = 'Task creation finished';
+                            message = t('Task creation finished');
                         } else {
-                            message = 'Unknown status received';
+                            message = t('Unknown status received');
                         }
                     }
                     onProgress?.(`${message}${progress ? ` ${Math.floor(progress * 100)}%` : ''}. ${helperMessage}`);
@@ -387,6 +389,18 @@ export function switchMoveTaskModalVisible(visible: boolean, taskId: number | nu
         type: TasksActionTypes.SWITCH_MOVE_TASK_MODAL_VISIBLE,
         payload: {
             taskId,
+            visible,
+        },
+    };
+
+    return action;
+}
+
+export function switchAppendTaskDataModalVisible(visible: boolean, taskInstance: Task | null = null): AnyAction {
+    const action = {
+        type: TasksActionTypes.SWITCH_APPEND_TASK_DATA_MODAL_VISIBLE,
+        payload: {
+            taskInstance,
             visible,
         },
     };

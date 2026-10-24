@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    Builder, Config, AntdConfig, ImmutableTree, Query, Utils as QbUtils,
+    Builder, Config, ImmutableTree, Query, Utils as QbUtils,
 } from '@react-awesome-query-builder/antd';
 import '@modules/@react-awesome-query-builder/antd/css/styles.css';
 import {
@@ -19,6 +19,8 @@ import Menu from 'antd/lib/menu';
 import { useSelector } from 'react-redux';
 import { CombinedState } from 'reducers';
 import { User } from 'cvat-core-wrapper';
+import { t } from 'i18n';
+import AntdConfig from 'utils/query-builder-config';
 
 interface ResourceFilterProps {
     predefinedVisible?: boolean;
@@ -295,7 +297,7 @@ export default function ResourceFilterHOC(
                                 type='default'
                                 onClick={() => onPredefinedVisibleChange(!predefinedVisible)}
                             >
-                                Quick filters
+                                {t('Quick filters')}
                                 { appliedFilter.predefined ?
                                     <FilterFilled /> :
                                     <FilterOutlined />}
@@ -356,7 +358,7 @@ export default function ResourceFilterHOC(
                                             () => onRecentVisibleChange(!recentVisible)
                                         }
                                     >
-                                        Recent
+                                        {t('Recent')}
                                         <DownOutlined />
                                     </Button>
                                 </Popover>
@@ -384,7 +386,7 @@ export default function ResourceFilterHOC(
                                         });
                                     }}
                                 >
-                                    Reset
+                                    {t('Reset')}
                                 </Button>
                                 <Button
                                     className='cvat-apply-filters-button'
@@ -405,7 +407,7 @@ export default function ResourceFilterHOC(
                                         });
                                     }}
                                 >
-                                    Apply
+                                    {t('Apply')}
                                 </Button>
                             </Space>
                         </div>
@@ -417,7 +419,7 @@ export default function ResourceFilterHOC(
                         type='default'
                         onClick={() => onBuilderVisibleChange(!builderVisible)}
                     >
-                        Filter
+                        {t('Filter')}
                         { appliedFilter.built || appliedFilter.recent ?
                             <FilterFilled /> :
                             <FilterOutlined />}
@@ -430,7 +432,7 @@ export default function ResourceFilterHOC(
                     type='link'
                     onClick={() => { setAppliedFilter({ ...defaultAppliedFilter }); }}
                 >
-                    Clear filters
+                    {t('Clear filters')}
                 </Button>
             </div>
         );

@@ -7,6 +7,7 @@ import Button from 'antd/lib/button';
 import { AimOutlined } from '@ant-design/icons';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
+import { t } from 'i18n';
 
 interface Props {
     centerPlaybackPosition(): void;
@@ -17,13 +18,13 @@ function AudioWaveformControls({
 }: Props): JSX.Element {
     return (
         <div className='cvat-audio-waveform-controls'>
-            <CVATTooltip title='Center waveform on playback position' placement='left'>
+            <CVATTooltip title={t('Center waveform on playback position')} placement='left'>
                 <Button
                     className='cvat-audio-btn'
                     type='text'
                     size='small'
                     icon={<AimOutlined />}
-                    aria-label='Center waveform on playback position'
+                    aria-label={t('Center waveform on playback position')}
                     onClick={centerPlaybackPosition}
                 />
             </CVATTooltip>

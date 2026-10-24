@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useContext } from 'react';
 import Text from 'antd/lib/typography/Text';
 import Collapse from 'antd/lib/collapse';
 
@@ -12,12 +12,15 @@ import ItemDetailsContainer from 'containers/annotation-page/standard-workspace/
 import { ColorBy } from 'reducers';
 import { ObjectType, ShapeType } from 'cvat-core-wrapper';
 import type { OrientationAngle } from 'utils/change-object-orientation';
+import { t } from 'i18n';
 import ObjectItemElementComponent from './object-item-element';
 import ItemBasics from './object-item-basics';
+import ObjectsListOrderingContext from './objects-list-ordering';
 
 interface Props {
     normalizedKeyMap: Record<string, string>;
     activated: boolean;
+    selected: boolean;
     objectType: ObjectType;
     shapeType: ShapeType;
     clientID: number;
@@ -35,6 +38,8 @@ interface Props {
     zLayerDragging?: boolean;
     zOrder: number;
     activate(activeElementID?: number): void;
+    toggleSelection(): void;
+    selectRange(orderedClientIDs: number[]): void;
     focusAndExpand(): void;
     copy(): void;
     propagate(): void;
@@ -59,6 +64,7 @@ interface Props {
 function ObjectItemComponent(props: Props): JSX.Element {
     const {
         activated,
+        selected,
         objectType,
         shapeType,
         clientID,
@@ -75,6 +81,8 @@ function ObjectItemComponent(props: Props): JSX.Element {
         normalizedKeyMap,
         isGroundTruth,
         activate,
+        toggleSelection,
+        selectRange,
         focusAndExpand,
         copy,
         propagate,
@@ -102,21 +110,38 @@ function ObjectItemComponent(props: Props): JSX.Element {
             ObjectType.TAG.toUpperCase() :
             `${shapeType.toUpperCase()} ${objectType.toUpperCase()}`;
 
-    const className = !activated ?
-        `cvat-objects-sidebar-state-item${zLayerDragging ? ' cvat-objects-sidebar-state-item-dragging' : ''}` :
-        `cvat-objects-sidebar-state-item cvat-objects-sidebar-state-active-item${
-            zLayerDragging ? ' cvat-objects-sidebar-state-item-dragging' : ''
-        }`;
+    const className = [
+        'cvat-objects-sidebar-state-item',
+        ...(activated ? ['cvat-objects-sidebar-state-active-item'] : []),
+        ...(selected ? ['cvat-objects-sidebar-state-item-selected'] : []),
+        ...(zLayerDragging ? ['cvat-objects-sidebar-state-item-dragging'] : []),
+    ].join(' ');
+
+    const sidebarOrdering = useContext(ObjectsListOrderingContext);
 
     const activateState = useCallback(() => {
         activate();
     }, []);
+
+    // ctrl+click toggles an object in the multi selection, shift+click takes the whole range
+    const onClick = useCallback((event: React.MouseEvent): void => {
+        if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            toggleSelection();
+        } else if (event.shiftKey) {
+            event.preventDefault();
+            // the browser selects the text between two shift clicks, it is not wanted here
+            window.getSelection()?.removeAllRanges();
+            selectRange(sidebarOrdering);
+        }
+    }, [toggleSelection, selectRange, sidebarOrdering]);
 
     return (
         <div style={{ display: 'flex', marginBottom: '1px' }}>
             <div
                 {...zLayerDragProps}
                 onMouseEnter={activateState}
+                onClick={onClick}
                 onDoubleClick={focusAndExpand}
                 id={`cvat-objects-sidebar-state-item-${clientID}`}
                 className={`${className}${zLayerDragProps ? ' cvat-objects-sidebar-state-item-draggable' : ''}`}
@@ -177,7 +202,7 @@ function ObjectItemComponent(props: Props): JSX.Element {
                         className='cvat-objects-sidebar-state-item-elements-collapse'
                         items={[{
                             key: 'elements',
-                            label: <Text style={{ fontSize: 10 }} type='secondary'>PARTS</Text>,
+                            label: <Text style={{ fontSize: 10 }} type='secondary'>{t('PARTS')}</Text>,
                             children: elements.map((element: number) => (
                                 <ObjectItemElementComponent
                                     key={element}

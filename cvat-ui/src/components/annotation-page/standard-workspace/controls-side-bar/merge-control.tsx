@@ -12,6 +12,7 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 import { useSelector } from 'react-redux';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import { Canvas } from 'cvat-canvas-wrapper';
+import { t } from 'i18n';
 
 export interface Props {
     disabled?: boolean;
@@ -32,10 +33,11 @@ function MergeControl(props: Props): JSX.Element {
         <Icon className='cvat-merge-control cvat-disabled-canvas-control' component={MergeIcon} />
     ) : (
         <CVATTooltip
-            title={`Merge shapes/tracks ${
-                canvasInstance instanceof Canvas ?
+            title={t('Merge shapes/tracks {{shortcut}}', {
+                shortcut: canvasInstance instanceof Canvas ?
                     normalizedKeyMap.SWITCH_MERGE_MODE_STANDARD_CONTROLS :
-                    normalizedKeyMap.SWITCH_MERGE_MODE_STANDARD_3D_CONTROLS}`}
+                    normalizedKeyMap.SWITCH_MERGE_MODE_STANDARD_3D_CONTROLS,
+            })}
             placement='right'
         >
             <Icon {...dynamicIconProps} component={MergeIcon} />

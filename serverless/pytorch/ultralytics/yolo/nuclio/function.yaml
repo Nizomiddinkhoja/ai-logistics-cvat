@@ -1,0 +1,53 @@
+metadata:
+  name: pth-warehouse-beverages-v2
+  namespace: cvat
+  annotations:
+    name: "Warehouse Beverages v2"
+    version: 2
+    type: detector
+    spec: |
+      [
+        {
+          "id": 0,
+          "name": "pack_water",
+          "type": "rectangle"
+        },
+        {
+          "id": 1,
+          "name": "can",
+          "type": "rectangle"
+        }
+      ]
+spec:
+  description: "Ultralytics YOLO (detect) deployed from /mnt/func/model.pt"
+  runtime: 'python:3.10'
+  handler: main:handler
+  eventTimeout: 60s
+  build:
+    # an image per function, so that several models can be deployed side by side
+    image: cvat.pytorch.ultralytics.yolo.pth-warehouse-beverages-v2
+    baseImage: cvat.pytorch.ultralytics.yolo.base
+
+    directives:
+      preCopy:
+        - kind: WORKDIR
+          value: /opt/nuclio
+
+  triggers:
+    myHttpTrigger:
+      numWorkers: 1
+      kind: 'http'
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        # a fixed host port: with a random one docker assigns a new port each time
+        # the container restarts, while nuclio keeps the old one and CVAT fails
+        # to reach the function with "Connection refused"
+        port: 32101
+        maxRequestBodySize: 33554432 # 32MB
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume

@@ -780,6 +780,20 @@ class ImageManifestManager(_ManifestManager):
 
         self.set_index()
 
+    def append(self, content: Iterable[dict[str, Any]]) -> None:
+        """Adds new entries to the end of an existing manifest file"""
+        with open(self._manifest.path, "rb+") as manifest_file:
+            # an uploaded manifest may have no trailing line break
+            if manifest_file.seek(0, os.SEEK_END):
+                manifest_file.seek(-1, os.SEEK_END)
+                if manifest_file.read(1) != b"\n":
+                    manifest_file.write(b"\n")
+
+        with open(self._manifest.path, "a") as manifest_file:
+            self._write_core_part(manifest_file, content, None)
+
+        self.set_index()
+
     def partial_update(self, number, properties):
         pass
 

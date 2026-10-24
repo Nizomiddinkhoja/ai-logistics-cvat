@@ -12,6 +12,7 @@ import { useSelector } from 'react-redux';
 import { CombinedState } from 'reducers';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import { Canvas } from 'cvat-canvas-wrapper';
+import { t } from 'i18n';
 
 export interface Props {
     disabled?: boolean;
@@ -30,11 +31,11 @@ function GroupControl(props: Props): JSX.Element {
 
     const title = [];
     if (canvasInstance instanceof Canvas) {
-        title.push(`Group shapes ${normalizedKeyMap.SWITCH_GROUP_MODE_STANDARD_CONTROLS}`);
-        title.push(`Select and press ${normalizedKeyMap.RESET_GROUP_STANDARD_CONTROLS} to reset a group.`);
+        title.push(t('Group shapes {{switchGroupModeStandardControls}}', { switchGroupModeStandardControls: normalizedKeyMap.SWITCH_GROUP_MODE_STANDARD_CONTROLS }));
+        title.push(t('Select and press {{resetGroupStandardControls}} to reset a group.', { resetGroupStandardControls: normalizedKeyMap.RESET_GROUP_STANDARD_CONTROLS }));
     } else if (canvasInstance instanceof Canvas3d) {
-        title.push(`Group shapes/tracks ${normalizedKeyMap.SWITCH_GROUP_MODE_STANDARD_3D_CONTROLS}`);
-        title.push(`Select and press ${normalizedKeyMap.RESET_GROUP_STANDARD_3D_CONTROLS} to reset a group.`);
+        title.push(t('Group shapes/tracks {{switchGroupModeStandard_3dControls}}', { switchGroupModeStandard_3dControls: normalizedKeyMap.SWITCH_GROUP_MODE_STANDARD_3D_CONTROLS }));
+        title.push(t('Select and press {{resetGroupStandard_3dControls}} to reset a group.', { resetGroupStandard_3dControls: normalizedKeyMap.RESET_GROUP_STANDARD_3D_CONTROLS }));
     }
 
     return disabled ? (

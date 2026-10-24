@@ -8,6 +8,7 @@ import ReactDOM from 'react-dom';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import Button from 'antd/lib/button';
 import Modal from 'antd/lib/modal';
+import { t } from 'i18n';
 
 import LabelForm from './label-form';
 import { fromSVGCoord, LabelOptColor } from './common';
@@ -96,7 +97,7 @@ function SkeletonElementContextMenu(props: ContextMenuProps): JSX.Element {
                         icon={<EditOutlined />}
                         key='configure_label'
                     >
-                        Configure
+                        {t('Configure')}
                     </Button>
                     <Button
                         type='link'
@@ -107,7 +108,7 @@ function SkeletonElementContextMenu(props: ContextMenuProps): JSX.Element {
                         icon={<DeleteOutlined />}
                         key='delete'
                     >
-                        Delete
+                        {t('Delete')}
                     </Button>
                 </div>
             )}

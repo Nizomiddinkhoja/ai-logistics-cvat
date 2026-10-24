@@ -15,6 +15,7 @@ import { CombinedState } from 'reducers';
 import { Storage, Task } from 'cvat-core-wrapper';
 import { cloudStoragesActions } from 'actions/cloud-storage-actions';
 import CVATTooltip from 'components/common/cvat-tooltip';
+import { t } from 'i18n';
 
 function SelectCSUpdatingSchemeModal(): JSX.Element | null {
     const {
@@ -43,10 +44,10 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
     }
 
     const capitalizedInstanceType = instanceType.charAt(0).toUpperCase() + instanceType.slice(1);
-    const alert = 'Data-linked storage will only be reset during the transfer and must be updated manually afterward';
+    const alert = t('Data-linked storage will only be reset during the transfer and must be updated manually afterward');
     const message = instances.length > 1 ?
-        'Some resources are linked to a cloud storage' :
-        `${capitalizedInstanceType} #${instances[0].id} is linked to a cloud storage`;
+        t('Some resources are linked to a cloud storage') :
+        t('{{capitalizedInstanceType}} #{{id}} is linked to a cloud storage', { capitalizedInstanceType, id: instances[0].id });
 
     return (
         <Modal
@@ -57,15 +58,12 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
                         title={(
                             <>
                                 <div>
-                                    <strong>Move & Detach</strong>
-                                    : Transfer and unlink from a cloud storage.
+                                    <strong>{t('Move & Detach')}</strong>
+                                    {t(': Transfer and unlink from a cloud storage.')}
                                 </div>
                                 <div>
-                                    <strong>Move & Auto Match</strong>
-                                    : Transfer and attempt to auto-link with a similar cloud storage
-                                    in the target workspace. A similar cloud storage is defined
-                                    by comparing the whole cloud storage configuration except credentials
-                                    and owner.
+                                    <strong>{t('Move & Auto Match')}</strong>
+                                    {t(': Transfer and attempt to auto-link with a similar cloud storage in the target workspace. A similar cloud storage is defined by comparing the whole cloud storage configuration except credentials and owner.')}
                                 </div>
                             </>
                         )}
@@ -79,7 +77,7 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
             open
             footer={[
                 <Button key='cancel' onClick={() => closeModal()}>
-                    Cancel
+                    {t('Cancel')}
                 </Button>,
                 <Button
                     key='move_and_detach'
@@ -101,7 +99,7 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
                         onUpdate();
                     }}
                 >
-                    Move & detach
+                    {t('Move & detach')}
                 </Button>,
                 // do not show option "move and auto match" when only data storage is linked
                 (
@@ -117,7 +115,7 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
                             onUpdate();
                         }}
                     >
-                        Move & Auto match
+                        {t('Move & Auto match')}
                     </Button>
                 ),
             ]}
@@ -137,7 +135,7 @@ function SelectCSUpdatingSchemeModal(): JSX.Element | null {
             }
 
             <p>
-                Please choose how you would like the transfer to be done.
+                {t('Please choose how you would like the transfer to be done.')}
             </p>
         </Modal>
     );

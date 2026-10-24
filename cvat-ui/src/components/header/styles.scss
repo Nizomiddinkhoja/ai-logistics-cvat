@@ -105,7 +105,8 @@
     width: $grid-unit-size * 24;
 }
 
-.cvat-header-menu-active-organization-item {
+.cvat-header-menu-active-organization-item,
+.cvat-header-menu-active-language-item {
     ::after {
         content: ' \2713';
         float: right;

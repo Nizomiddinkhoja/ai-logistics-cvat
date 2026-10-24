@@ -16,6 +16,9 @@ import weekday from 'dayjs/plugin/weekday';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import weekYear from 'dayjs/plugin/weekYear';
 import duration from 'dayjs/plugin/duration';
+import 'dayjs/locale/ru';
+import ConfigProvider from 'antd/lib/config-provider';
+import ruRU from 'antd/lib/locale/ru_RU';
 
 import { getAboutAsync } from 'actions/about-actions';
 import { authenticatedAsync } from 'actions/auth-actions';
@@ -37,6 +40,7 @@ import { getServerAPISchemaAsync } from 'actions/server-actions';
 import { getGrowthDataAsync, updateGrowthDataAsync } from 'actions/growth-actions';
 import { navigationActions } from 'actions/navigation-actions';
 import { UserGrowthDataModifiableFields } from 'cvat-core-wrapper';
+import { getLanguage } from 'i18n';
 import {
     CombinedState, GrowthState, NotificationsState, PluginsState,
 } from './reducers';
@@ -54,6 +58,9 @@ dayjs.extend(localeData);
 dayjs.extend(weekOfYear);
 dayjs.extend(weekYear);
 dayjs.extend(duration);
+
+const language = getLanguage();
+dayjs.locale(language);
 
 interface StateToProps {
     pluginsInitialized: boolean;
@@ -163,13 +170,15 @@ const ReduxAppWrapper = connect(mapStateToProps, mapDispatchToProps)(CVATApplica
 
 const root = createRoot(document.getElementById('root') as HTMLDivElement);
 root.render((
-    <Provider store={cvatStore}>
-        <BrowserRouter>
-            <PluginsEntrypoint />
-            <ReduxAppWrapper />
-        </BrowserRouter>
-        <LayoutGrid />
-    </Provider>
+    <ConfigProvider locale={language === 'ru' ? ruRU : undefined}>
+        <Provider store={cvatStore}>
+            <BrowserRouter>
+                <PluginsEntrypoint />
+                <ReduxAppWrapper />
+            </BrowserRouter>
+            <LayoutGrid />
+        </Provider>
+    </ConfigProvider>
 ));
 
 window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {

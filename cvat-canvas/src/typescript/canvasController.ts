@@ -31,6 +31,7 @@ export interface CanvasController {
     readonly focusData: FocusData;
     readonly activeElement: ActiveElement;
     readonly highlightedElements: HighlightedElements;
+    readonly selectedObjects: number[];
     readonly drawData: DrawData;
     readonly editData: MasksEditData | PolyEditData;
     readonly interactionData: InteractionData;
@@ -137,6 +138,10 @@ export class CanvasControllerImpl implements CanvasController {
 
     public get highlightedElements(): HighlightedElements {
         return this.model.highlightedElements;
+    }
+
+    public get selectedObjects(): number[] {
+        return this.model.selectedObjects;
     }
 
     public get drawData(): DrawData {

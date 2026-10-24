@@ -1438,6 +1438,68 @@ async function createTask(
     return { taskID: response.data.id, rqID };
 }
 
+async function appendTaskData(
+    taskID: number,
+    clientFiles: File[],
+    onUpdate: (updateData: UpdateStatusData) => void,
+): Promise<string> {
+    const { backendAPI, origin } = config;
+    const url = `${backendAPI}/tasks/${taskID}/data`;
+    const message = 'CVAT is uploading task data to the server';
+
+    const chunkSize = config.uploadChunkSize * 1024 * 1024;
+    const chunkFiles = clientFiles.filter((file) => file.size > chunkSize);
+    const fileBulks = clientFiles
+        .filter((file) => file.size <= chunkSize)
+        .reduce((fileGroups, file) => {
+            const lastBulk = fileGroups[fileGroups.length - 1];
+            if (chunkSize - lastBulk.size >= file.size) {
+                lastBulk.files.push(file);
+                lastBulk.size += file.size;
+            } else {
+                fileGroups.push({ files: [file], size: file.size });
+            }
+            return fileGroups;
+        }, [{ files: [] as File[], size: 0 }]);
+    const totalSize = clientFiles.reduce((acc, file) => acc + file.size, 0);
+
+    onUpdate({ status: RQStatus.UNKNOWN, progress: 0, message });
+
+    try {
+        await Axios.post(url, {}, { headers: { 'Upload-Start': true } });
+
+        const uploadConfig = {
+            endpoint: `${origin}${url}/`,
+            onUpdate: (percentage: number) => {
+                onUpdate({ status: RQStatus.UNKNOWN, progress: percentage, message });
+            },
+            chunkSize,
+            totalSize,
+            totalSentSize: 0,
+        };
+        for (const file of chunkFiles) {
+            const { uploadSentSize } = await chunkUpload(file, uploadConfig);
+            uploadConfig.totalSentSize += uploadSentSize;
+        }
+
+        let { totalSentSize } = uploadConfig;
+        for (const bulk of fileBulks.filter((_bulk) => _bulk.files.length)) {
+            const bulkData = new FormData();
+            bulk.files.forEach((file, idx) => {
+                bulkData.append(`client_files[${idx}]`, file);
+            });
+            onUpdate({ status: RQStatus.UNKNOWN, progress: totalSentSize / totalSize, message });
+            await Axios.post(url, bulkData, { headers: { 'Upload-Multiple': true } });
+            totalSentSize += bulk.size;
+        }
+
+        const response = await Axios.post(url, {}, { headers: { 'Upload-Finish': true } });
+        return response.data.rq_id;
+    } catch (errorData) {
+        throw generateError(errorData);
+    }
+}
+
 async function getJobs(
     filter: JobsFilter = {},
     aggregate = false,
@@ -2769,6 +2831,7 @@ export default Object.freeze({
         get: getTasks,
         save: saveTask,
         create: createTask,
+        appendData: appendTaskData,
         delete: deleteTask,
         exportDataset: exportDataset('tasks'),
         getPreview: getPreview('tasks'),

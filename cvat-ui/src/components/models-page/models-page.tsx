@@ -18,6 +18,7 @@ import { CombinedState, ModelsQuery, SelectedResourceType } from 'reducers';
 import { useResourceQuery } from 'utils/hooks';
 import { selectionActions } from 'actions/selection-actions';
 import { MLModel, ModelProviders } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import DeployedModelsList from './deployed-models-list';
 import EmptyListComponent from './empty-list';
 import TopBar from './top-bar';
@@ -75,8 +76,8 @@ function ModelsPageComponent(): JSX.Element {
         dispatch(getModelsAsync(updatedQuery));
         if (pageOutOfBounds) {
             notification.error({
-                message: 'Could not fetch models',
-                description: 'Invalid page',
+                message: t('Could not fetch models'),
+                description: t('Invalid page'),
             });
         }
     }, []);

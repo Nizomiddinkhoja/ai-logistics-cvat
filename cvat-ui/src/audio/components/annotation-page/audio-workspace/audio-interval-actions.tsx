@@ -31,6 +31,7 @@ import {
     SeekToEndIcon,
     SeekToStartIcon,
 } from 'icons';
+import { t } from 'i18n';
 import AudioRegionItemMenu from './audio-region-item-menu';
 import { copyAudioIntervalURL, intervalID } from './utils/audio-interval';
 
@@ -187,21 +188,21 @@ export default function AudioIntervalActions({
                 <Col>
                     <Row>
                         <AudioIntervalActionButton
-                            title={`Set playback to interval start ${shortcuts.setPlaybackToStart}`}
+                            title={t('Set playback to interval start {{setPlaybackToStart}}', { setPlaybackToStart: shortcuts.setPlaybackToStart })}
                             className={actionClassName}
                             onAction={handleSetPlaybackToStart}
                         >
                             <Icon component={SeekToStartIcon} aria-hidden />
                         </AudioIntervalActionButton>
                         <AudioIntervalActionButton
-                            title={`Play interval as range ${shortcuts.playInterval}`}
+                            title={t('Play interval as range {{playInterval}}', { playInterval: shortcuts.playInterval })}
                             className={playActionClassName}
                             onAction={handlePlayInterval}
                         >
                             <Icon component={PlayRangeIcon} aria-hidden />
                         </AudioIntervalActionButton>
                         <AudioIntervalActionButton
-                            title={`Set playback to interval end ${shortcuts.setPlaybackToEnd}`}
+                            title={t('Set playback to interval end {{setPlaybackToEnd}}', { setPlaybackToEnd: shortcuts.setPlaybackToEnd })}
                             className={actionClassName}
                             onAction={handleSetPlaybackToEnd}
                         >
@@ -212,21 +213,21 @@ export default function AudioIntervalActions({
                 <Col>
                     <Row>
                         <AudioIntervalActionButton
-                            title={`${locked ? 'Unlock interval' : 'Lock interval'} ${shortcuts.switchLock}`}
+                            title={`${locked ? t('Unlock interval') : t('Lock interval')} ${shortcuts.switchLock}`}
                             className={actionClassName}
                             onAction={handleToggleLock}
                         >
                             {locked ? <LockFilled /> : <UnlockOutlined />}
                         </AudioIntervalActionButton>
                         <AudioIntervalActionButton
-                            title={`${interval.pinned ? 'Unpin interval' : 'Pin interval'} ${shortcuts.switchPinned}`}
+                            title={`${interval.pinned ? t('Unpin interval') : t('Pin interval')} ${shortcuts.switchPinned}`}
                             className={lockableActionClassName}
                             onAction={handleTogglePinned}
                         >
                             {interval.pinned ? <PushpinFilled /> : <PushpinOutlined />}
                         </AudioIntervalActionButton>
                         <AudioIntervalActionButton
-                            title={`${interval.hidden ? 'Show interval' : 'Hide interval'} ${shortcuts.switchHidden}`}
+                            title={`${interval.hidden ? t('Show interval') : t('Hide interval')} ${shortcuts.switchHidden}`}
                             className={lockableActionClassName}
                             onAction={handleToggleHidden}
                         >

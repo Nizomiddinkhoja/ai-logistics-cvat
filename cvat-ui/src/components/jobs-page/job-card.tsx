@@ -14,6 +14,7 @@ import { Job, JobType } from 'cvat-core-wrapper';
 import { useCardHeightHOC, useContextMenuClick } from 'utils/hooks';
 import Preview from 'components/common/preview';
 import { CombinedState } from 'reducers';
+import { t } from 'i18n';
 import JobActionsComponent from './actions-menu';
 
 const useCardHeight = useCardHeightHOC({
@@ -62,11 +63,11 @@ function JobCardComponent(props: Readonly<Props>): JSX.Element {
 
     let tag = null;
     if (job.type === JobType.GROUND_TRUTH) {
-        tag = 'Ground truth';
+        tag = t('Ground truth');
     } else if (job.replicasCount > 0) {
-        tag = 'Parent';
+        tag = t('Parent');
     } else if (job.parentJobId !== null) {
-        tag = 'Replica';
+        tag = t('Replica');
     }
 
     const cardClassName = `cvat-job-page-list-item${selected ? ' cvat-item-selected' : ''}`;
@@ -88,7 +89,7 @@ function JobCardComponent(props: Readonly<Props>): JSX.Element {
                         previewClassName='cvat-jobs-page-job-item-card-preview'
                     />
                     <div className='cvat-job-page-list-item-id'>
-                        ID:
+                        {t('ID:')}
                         {` ${job.id}`}
                     </div>
                     {tag && <div className='cvat-job-page-list-item-type'>{tag}</div>}
@@ -100,12 +101,12 @@ function JobCardComponent(props: Readonly<Props>): JSX.Element {
             onContextMenuCapture={handleContextMenuCapture}
         >
             <Descriptions column={1} size='small'>
-                <Descriptions.Item label='Stage and state'>{`${job.stage} ${job.state}`}</Descriptions.Item>
-                <Descriptions.Item label='Frames'>{job.stopFrame - job.startFrame + 1}</Descriptions.Item>
+                <Descriptions.Item label={t('Stage and state')}>{`${job.stage} ${job.state}`}</Descriptions.Item>
+                <Descriptions.Item label={t('Frames')}>{job.stopFrame - job.startFrame + 1}</Descriptions.Item>
                 {job.assignee ? (
-                    <Descriptions.Item label='Assignee'>{job.assignee.username}</Descriptions.Item>
+                    <Descriptions.Item label={t('Assignee')}>{job.assignee.username}</Descriptions.Item>
                 ) : (
-                    <Descriptions.Item label='Assignee'> </Descriptions.Item>
+                    <Descriptions.Item label={t('Assignee')}> </Descriptions.Item>
                 )}
             </Descriptions>
             <div

@@ -22,6 +22,7 @@ import { getFileContentType, getContentTypeRemoteFile, getFileNameFromPath } fro
 
 import { FrameSelectionMethod } from 'components/create-job-page/job-form';
 import { formFieldsError } from 'utils/validation';
+import { t } from 'i18n';
 import BasicConfigurationForm, { BaseConfiguration } from './basic-configuration-form';
 import ProjectSearchField from './project-search-field';
 import ProjectSubsetField from './project-subset-field';
@@ -109,13 +110,13 @@ const defaultState: State = {
 };
 
 const UploadFileErrorMessages = {
-    one: 'Wrong list of files. You can upload an archive with images, a video, a pdf file or multiple images. ',
-    multi: 'Wrong list of files. You can upload one or more videos. ',
+    one: t('Wrong list of files. You can upload an archive with images, a video, a pdf file or multiple images. '),
+    multi: t('Wrong list of files. You can upload one or more videos. '),
 };
 
 const UploadFileHints = {
-    one: 'You can upload an archive with images, a video, or multiple images',
-    multi: 'You can upload one or more videos',
+    one: t('You can upload an archive with images, a video, or multiple images'),
+    multi: t('You can upload one or more videos'),
 };
 
 function receiveExtensions(files: RemoteFile[]): string[] {
@@ -131,7 +132,7 @@ function checkFiles(files: RemoteFile[], type: SupportedShareTypes, baseError: s
     if (erroredFiles.length !== 0) {
         const unsupportedTypes = receiveExtensions(erroredFiles);
         const extensionList = Array.from(new Set(unsupportedTypes));
-        return extensionList.length ? `${baseError} Found unsupported types: ${extensionList.join(', ')}. ` : baseError;
+        return extensionList.length ? t('{{baseError}} Found unsupported types: {{extensionList}}. ', { baseError, extensionList: extensionList.join(', ') }) : baseError;
     }
     return '';
 }
@@ -389,7 +390,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                 }
             }
         } catch (err) {
-            uploadFileErrorMessage = `We can't process it. ${err}`;
+            uploadFileErrorMessage = t('We can\'t process it. {{err}}', { err });
         }
 
         this.setState({
@@ -445,8 +446,8 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
 
         if (!this.validateFiles()) {
             notification.error({
-                message: 'Could not create a task',
-                description: 'A task must contain at least one file',
+                message: t('Could not create a task'),
+                description: t('A task must contain at least one file'),
                 className: 'cvat-notification-create-task-fail',
             });
             reject();
@@ -486,9 +487,9 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                             }, () => {
                                 _resolve();
                                 notification.info({
-                                    message: 'Task parameters were automatically updated',
-                                    description: 'Sorting method has been updated as Honeypots' +
-                                        ' quality method only supports RANDOM sorting',
+                                    message: t('Task parameters were automatically updated'),
+                                    description: t('Sorting method has been updated as Honeypots') +
+                                        t(' quality method only supports RANDOM sorting'),
                                 });
                             });
                         } else {
@@ -521,7 +522,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             }).then(resolve)
             .catch((error: Error | ValidateErrorEntity): void => {
                 notification.error({
-                    message: 'Could not create a task',
+                    message: t('Could not create a task'),
                     description: formFieldsError(error).map((text: string): JSX.Element => <div>{text}</div>),
                     className: 'cvat-notification-create-task-fail',
                 });
@@ -546,7 +547,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             .then(this.createOneTask)
             .then(() => {
                 notification.info({
-                    message: 'The task has been created',
+                    message: t('The task has been created'),
                     className: 'cvat-notification-create-task-success',
                 });
             })
@@ -665,11 +666,14 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                 const countAll = multiTasks.length;
 
                 notification.info({
-                    message: 'The tasks have been created',
-                    description:
-                        `Completed: ${countCompleted}, failed: ${countFailed},${countCancelled ?
-                            ` cancelled: ${countCancelled},` :
-                            ''} total: ${countAll}, `,
+                    message: t('The tasks have been created'),
+                    description: countCancelled ?
+                        t('Completed: {{countCompleted}}, failed: {{countFailed}}, cancelled: {{countCancelled}}, total: {{countAll}}, ', {
+                            countCompleted, countFailed, countCancelled, countAll,
+                        }) :
+                        t('Completed: {{countCompleted}}, failed: {{countFailed}}, total: {{countAll}}, ', {
+                            countCompleted, countFailed, countAll,
+                        }),
                     className: 'cvat-notification-create-task-success',
                 });
             });
@@ -692,7 +696,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             multiTasks: newMultiTasks,
         }, () => {
             notification.info({
-                message: `Creation of ${count} tasks have been canceled`,
+                message: t('Creation of {{countValue}} tasks have been canceled', { countValue: count }),
                 className: 'cvat-notification-create-task-success',
             });
         });
@@ -798,7 +802,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
         return (
             <>
                 <Col span={24}>
-                    <Text className='cvat-text-color'>Project</Text>
+                    <Text className='cvat-text-color'>{t('Project')}</Text>
                 </Col>
                 <Col span={24}>
                     <ProjectSearchField onSelect={this.handleProjectIdChange} value={projectId} />
@@ -814,7 +818,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             return (
                 <>
                     <Col span={24}>
-                        <Text className='cvat-text-color'>Subset</Text>
+                        <Text className='cvat-text-color'>{t('Subset')}</Text>
                     </Col>
                     <Col span={24}>
                         <ProjectSubsetField
@@ -838,10 +842,10 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             return (
                 <>
                     <Col span={24}>
-                        <Text className='cvat-text-color'>Labels</Text>
+                        <Text className='cvat-text-color'>{t('Labels')}</Text>
                     </Col>
                     <Col span={24}>
-                        <Text type='secondary'>Project labels will be used</Text>
+                        <Text type='secondary'>{t('Project labels will be used')}</Text>
                     </Col>
                 </>
             );
@@ -849,7 +853,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
 
         return (
             <Col span={24}>
-                <Text className='cvat-text-color'>Labels</Text>
+                <Text className='cvat-text-color'>{t('Labels')}</Text>
                 <LabelsEditor
                     labels={labels}
                     onSubmit={(newLabels): void => {
@@ -870,7 +874,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
             <>
                 <Col span={24}>
                     <Text type='danger'>* </Text>
-                    <Text className='cvat-text-color'>Select files</Text>
+                    <Text className='cvat-text-color'>{t('Select files')}</Text>
                     <FileManagerComponent
                         localFilesHint={many ? UploadFileHints.multi : UploadFileHints.one}
                         onChangeActiveKey={this.changeFileManagerTab}
@@ -918,7 +922,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                     className='cvat-advanced-configuration-wrapper'
                     items={[{
                         key: '1',
-                        label: <Text className='cvat-title'>Advanced configuration</Text>,
+                        label: <Text className='cvat-title'>{t('Advanced configuration')}</Text>,
                         children: (
                             <AdvancedConfigurationForm
                                 activeFileManagerTab={activeFileManagerTab}
@@ -955,7 +959,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                     className='cvat-quality-configuration-wrapper'
                     items={[{
                         key: '1',
-                        label: <Text className='cvat-title'>Quality</Text>,
+                        label: <Text className='cvat-title'>{t('Quality')}</Text>,
                         children: (
                             <QualityConfigurationForm
                                 ref={this.qualityConfigurationComponent}
@@ -988,7 +992,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                         onClick={this.handleSubmitAndOpen}
                         disabled={!!uploadFileErrorMessage}
                     >
-                        Submit & Open
+                        {t('Submit & Open')}
                     </Button>
                 </Col>
                 <Col>
@@ -998,7 +1002,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                         onClick={this.handleSubmitAndContinue}
                         disabled={!!uploadFileErrorMessage}
                     >
-                        Submit & Continue
+                        {t('Submit & Continue')}
                     </Button>
                 </Col>
             </Row>
@@ -1039,9 +1043,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
                         onClick={this.handleSubmitMultiTasks}
                         disabled={!!uploadFileErrorMessage}
                     >
-                        Submit&nbsp;
-                        {currentFiles.length}
-                        &nbsp;tasks
+                        {t('Submit {{count}} tasks', { count: currentFiles.length })}
                     </Button>
                 </Col>
             </Row>
@@ -1054,7 +1056,7 @@ class CreateTaskContent extends React.PureComponent<Props & RouteComponentProps,
         return (
             <Row justify='start' align='middle' className='cvat-create-task-content'>
                 <Col span={24}>
-                    <Text className='cvat-title'>Basic configuration</Text>
+                    <Text className='cvat-title'>{t('Basic configuration')}</Text>
                 </Col>
 
                 {this.renderBasicBlock()}

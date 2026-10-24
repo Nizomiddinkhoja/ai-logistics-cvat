@@ -22,6 +22,7 @@ import {
 } from 'components/resource-sorting-filtering';
 
 import dimensions from 'utils/dimensions';
+import { t } from 'i18n';
 import ProjectsCSVExportButton from './projects-csv-export-button';
 import {
     localStorageRecentKeyword, localStorageRecentCapacity, predefinedFilterValues, config,
@@ -69,7 +70,7 @@ function TopBarComponent(props: Readonly<Props>): JSX.Element {
                             }}
                             defaultValue={query.search ?? ''}
                             className='cvat-projects-page-search-bar'
-                            placeholder='Search ...'
+                            placeholder={t('Search ...')}
                         />
                         <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                     </div>
@@ -116,7 +117,7 @@ function TopBarComponent(props: Readonly<Props>): JSX.Element {
                                     onClick={(): void => history.push('/projects/create')}
                                     icon={<PlusOutlined />}
                                 >
-                                    Create a new project
+                                    {t('Create a new project')}
                                 </Button>
                                 <Button
                                     className='cvat-import-project-button'
@@ -125,7 +126,7 @@ function TopBarComponent(props: Readonly<Props>): JSX.Element {
                                     icon={importing ? <LoadingOutlined /> : <UploadOutlined />}
                                     onClick={() => dispatch(importActions.openImportBackupModal('project'))}
                                 >
-                                    Create from backup
+                                    {t('Create from backup')}
                                 </Button>
                             </div>
                         )}

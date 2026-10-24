@@ -14,6 +14,7 @@ import { Store } from 'antd/lib/form/interface';
 import { DeleteOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import Button from 'antd/lib/button';
 import Input from 'antd/lib/input';
+import { t } from 'i18n';
 
 interface Props {
     onInvite: (values: Store) => void;
@@ -49,11 +50,11 @@ function InvitationModal(props: Props): JSX.Element {
                 form={form}
             >
                 <Paragraph>
-                    <Text>Invite CVAT users to collaborate </Text>
+                    <Text>{t('Invite CVAT users to collaborate')} </Text>
                 </Paragraph>
                 <Paragraph>
                     <Text type='secondary'>
-                        If the email address is registered on CVAT, the user will be added to the organization
+                        {t('If the email address is registered on CVAT, the user will be added to the organization')}
                     </Text>
                 </Paragraph>
                 <Form.List name='users'>
@@ -68,11 +69,11 @@ function InvitationModal(props: Props): JSX.Element {
                                             name={[field.name, 'email']}
                                             fieldKey={[field.fieldKey, 'email']}
                                             rules={[
-                                                { required: true, message: 'This field is required' },
-                                                { type: 'email', message: 'The input is not a valid email' },
+                                                { required: true, message: t('This field is required') },
+                                                { type: 'email', message: t('The input is not a valid email') },
                                             ]}
                                         >
-                                            <Input placeholder='Enter an email address' />
+                                            <Input placeholder={t('Enter an email address')} />
                                         </Form.Item>
                                     </Col>
                                     <Col span={10} offset={1}>
@@ -81,12 +82,12 @@ function InvitationModal(props: Props): JSX.Element {
                                             name={[field.name, 'role']}
                                             fieldKey={[field.fieldKey, 'role']}
                                             initialValue='worker'
-                                            rules={[{ required: true, message: 'This field is required' }]}
+                                            rules={[{ required: true, message: t('This field is required') }]}
                                         >
                                             <Select>
-                                                <Select.Option value='worker'>Worker</Select.Option>
-                                                <Select.Option value='supervisor'>Supervisor</Select.Option>
-                                                <Select.Option value='maintainer'>Maintainer</Select.Option>
+                                                <Select.Option value='worker'>{t('Worker')}</Select.Option>
+                                                <Select.Option value='supervisor'>{t('Supervisor')}</Select.Option>
+                                                <Select.Option value='maintainer'>{t('Maintainer')}</Select.Option>
                                             </Select>
                                         </Form.Item>
                                     </Col>
@@ -99,7 +100,7 @@ function InvitationModal(props: Props): JSX.Element {
                             ))}
                             <Form.Item>
                                 <Button className='cvat-invite-more-org-members-button' icon={<PlusCircleOutlined />} onClick={() => add()}>
-                                    Invite more
+                                    {t('Invite more')}
                                 </Button>
                             </Form.Item>
                         </>

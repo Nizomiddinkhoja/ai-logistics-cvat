@@ -17,6 +17,7 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 import { useSelector } from 'react-redux';
 import { CombinedState } from 'reducers';
 import { useContextMenuClick } from 'utils/hooks';
+import { t } from 'i18n';
 import WebhookActionsMenu from './actions-menu';
 
 export interface WebhookItemProps {
@@ -34,18 +35,18 @@ interface WebhookStatus {
 function setUpWebhookStatus(status: number): WebhookStatus {
     if (status?.toString().startsWith('2')) {
         return {
-            message: `Last delivery was successful. Response: ${status}`,
+            message: t('Last delivery was successful. Response: {{status}}', { status }),
             className: 'cvat-webhook-status-available',
         };
     }
     if (status?.toString().startsWith('5')) {
         return {
-            message: `Last delivery was not successful. Response: ${status}`,
+            message: t('Last delivery was not successful. Response: {{status}}', { status }),
             className: 'cvat-webhook-status-failed',
         };
     }
     return {
-        message: status ? `Response: ${status}` : undefined,
+        message: status ? t('Response: {{status}}', { status }) : undefined,
         className: 'cvat-webhook-status-unavailable',
     };
 }
@@ -77,7 +78,7 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
         setPingFetching(true);
         webhookInstance.ping().then((deliveryInstance: any) => {
             setWebhookStatus(setUpWebhookStatus(
-                deliveryInstance.statusCode ? deliveryInstance.statusCode : 'Timeout',
+                deliveryInstance.statusCode ? deliveryInstance.statusCode : t('Timeout'),
             ));
         }).finally(() => {
             setPingFetching(false);
@@ -122,11 +123,11 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
                 </Paragraph>
                 {username && (
                     <>
-                        <Text type='secondary'>{`Created by ${username} on ${created}`}</Text>
+                        <Text type='secondary'>{t('Created by {{username}} on {{created}}', { username, created })}</Text>
                         <br />
                     </>
                 )}
-                <Text type='secondary'>{`Last updated ${updated}`}</Text>
+                <Text type='secondary'>{t('Last updated {{updated}}', { updated })}</Text>
             </Col>
             <Col span={6} offset={1}>
                 <Paragraph ellipsis={{
@@ -134,7 +135,7 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
                     rows: 3,
                 }}
                 >
-                    <Text type='secondary' className='cvat-webhook-info-text'>URL:</Text>
+                    <Text type='secondary' className='cvat-webhook-info-text'>{t('URL:')}</Text>
                     {targetURL}
                 </Paragraph>
             </Col>
@@ -144,7 +145,7 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
                     rows: 3,
                 }}
                 >
-                    <Text type='secondary' className='cvat-webhook-info-text'>Events:</Text>
+                    <Text type='secondary' className='cvat-webhook-info-text'>{t('Events:')}</Text>
                     {eventsList}
                 </Paragraph>
             </Col>
@@ -160,7 +161,7 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
                             ghost
                             onClick={onPing}
                         >
-                            Ping
+                            {t('Ping')}
                         </Button>
                     </Col>
                 </Row>
@@ -170,7 +171,7 @@ function WebhookItem(props: Readonly<WebhookItemProps>): JSX.Element | null {
                             className='cvat-webhooks-page-actions-button cvat-actions-menu-button'
                             onClick={handleContextMenuClick}
                         >
-                            <Text className='cvat-text-color'>Actions</Text>
+                            <Text className='cvat-text-color'>{t('Actions')}</Text>
                             <MoreOutlined className='cvat-menu-icon' />
                         </div>
                     </Col>

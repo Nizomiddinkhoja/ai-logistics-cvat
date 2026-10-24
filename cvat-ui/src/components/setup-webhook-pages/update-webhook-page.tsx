@@ -12,6 +12,7 @@ import { LeftOutlined } from '@ant-design/icons';
 import { useHistory, useParams } from 'react-router';
 import { CombinedState } from 'reducers';
 import { getCore } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import SetupWebhookContent from './setup-webhook-content';
 
 interface ParamType {
@@ -35,8 +36,8 @@ function UpdateWebhookPage(): JSX.Element {
                 }
             }).catch((error: unknown) => {
                 notification.error({
-                    message: 'Failed to fetch the webhook',
-                    description: error instanceof Error ? error.message : 'Unknown error',
+                    message: t('Failed to fetch the webhook'),
+                    description: error instanceof Error ? error.message : t('Unknown error'),
                 });
             });
         } else {
@@ -50,7 +51,7 @@ function UpdateWebhookPage(): JSX.Element {
                 <Col md={20} lg={16} xl={14} xxl={9}>
                     <Button className='cvat-webhooks-go-back' onClick={() => history.goBack()} type='link' size='large'>
                         <LeftOutlined />
-                        Back to webhooks
+                        {t('Back to webhooks')}
                     </Button>
                 </Col>
             </Row>

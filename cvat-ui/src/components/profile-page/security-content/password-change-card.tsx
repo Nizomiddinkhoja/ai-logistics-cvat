@@ -12,6 +12,7 @@ import Button from 'antd/lib/button';
 
 import { ChangePasswordData } from 'reducers';
 import { changePasswordAsync } from 'actions/auth-actions';
+import { t } from 'i18n';
 import ChangePasswordForm from './change-password-form';
 
 function PasswordChangeCard(): JSX.Element {
@@ -32,7 +33,7 @@ function PasswordChangeCard(): JSX.Element {
 
     return (
         <Card
-            title='Password'
+            title={t('Password')}
             className='cvat-security-password-card'
             style={{ marginBottom: 16 }}
         >
@@ -42,12 +43,12 @@ function PasswordChangeCard(): JSX.Element {
                 <Row justify='space-between' align='middle'>
                     <Col>
                         <Typography.Text type='secondary'>
-                            Keep your account secure with a strong, unique password
+                            {t('Keep your account secure with a strong, unique password')}
                         </Typography.Text>
                     </Col>
                     <Col>
                         <Button className='cvat-security-password-change-button' onClick={onShowPasswordForm} type='primary'>
-                            Change password
+                            {t('Change password')}
                         </Button>
                     </Col>
                 </Row>

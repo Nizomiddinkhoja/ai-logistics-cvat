@@ -8,6 +8,7 @@ import Button from 'antd/lib/button';
 import { Row, Col } from 'antd/lib/grid';
 import { LeftOutlined } from '@ant-design/icons';
 import { useHistory, useLocation } from 'react-router';
+import { t } from 'i18n';
 import SetupWebhookContent from './setup-webhook-content';
 
 function CreateWebhookPage(): JSX.Element {
@@ -32,7 +33,7 @@ function CreateWebhookPage(): JSX.Element {
                         size='large'
                     >
                         <LeftOutlined />
-                        Back to webhooks
+                        {t('Back to webhooks')}
                     </Button>
                 </Col>
             </Row>

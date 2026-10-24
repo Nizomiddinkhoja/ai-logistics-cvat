@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { ZoomInOutlined } from '@ant-design/icons';
+import { t } from 'i18n';
 
 import { limitZoom, ZOOM_MAX, ZOOM_MIN } from '../../../../utils/waveform-geometry';
 import AudioSliderControl from './audio-slider-control';
@@ -24,7 +25,7 @@ function ZoomControl(props: Props): JSX.Element {
     return (
         <AudioSliderControl
             icon={<ZoomInOutlined />}
-            tooltip='Zoom'
+            tooltip={t('Zoom')}
             value={currentZoom}
             min={ZOOM_MIN}
             max={ZOOM_MAX}

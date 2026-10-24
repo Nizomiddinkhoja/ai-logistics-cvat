@@ -18,6 +18,7 @@ import { CombinedState } from 'reducers';
 import { Project } from 'cvat-core-wrapper';
 import { useCardHeightHOC, usePlugins, useContextMenuClick } from 'utils/hooks';
 import Preview from 'components/common/preview';
+import { t } from 'i18n';
 import ProjectActionsComponent from './actions-menu';
 
 interface Props {
@@ -102,13 +103,13 @@ export default function ProjectItemComponent(props: Props): JSX.Element {
                             {ownerName && (
                                 <>
                                     <Text type='secondary'>
-                                        Created
-                                        {ownerName ? ` by ${ownerName}` : ''}
+                                        {t('Created')}
+                                        {ownerName ? t(' by {{ownerName}}', { ownerName }) : ''}
                                     </Text>
                                     <br />
                                 </>
                             )}
-                            <Text type='secondary'>{`Last updated ${updated}`}</Text>
+                            <Text type='secondary'>{t('Last updated {{updated}}', { updated })}</Text>
                         </div>
                         <div>
                             <Button

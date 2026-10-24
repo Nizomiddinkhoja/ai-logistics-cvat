@@ -14,6 +14,7 @@ import {
     defaultVisibility,
     ResourceSelectionInfo,
 } from 'components/resource-sorting-filtering';
+import { t } from 'i18n';
 import JobsCSVExportButton from './jobs-csv-export-button';
 import {
     localStorageRecentKeyword, localStorageRecentCapacity, predefinedFilterValues, config,
@@ -50,7 +51,7 @@ function TopBarComponent(props: Readonly<Props>): JSX.Element {
                             }}
                             defaultValue={query.search ?? ''}
                             className='cvat-jobs-page-search-bar'
-                            placeholder='Search ...'
+                            placeholder={t('Search ...')}
                         />
                         <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                     </div>

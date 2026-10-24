@@ -10,6 +10,7 @@ import { JobsActionTypes } from 'actions/jobs-actions';
 import { AuthActionTypes } from 'actions/auth-actions';
 import { BoundariesActionTypes } from 'actions/boundaries-actions';
 import { Canvas, CanvasMode, RenderData } from 'cvat-canvas-wrapper';
+import { EMPTY_CLIPBOARD } from 'utils/objects-clipboard';
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import {
     DimensionType, getCore, JobStage, Label, LabelType, ObjectState, ObjectType, ShapeType,
@@ -35,6 +36,18 @@ function updateActivatedStateID(newStates: ObjectState[], prevActivatedStateID: 
         newStates.some((_state: ObjectState) => _state.clientID === prevActivatedStateID) ?
         prevActivatedStateID :
         null;
+}
+
+// Objects removed from the frame must not stay in the multi selection
+function updateSelectedStateIDs(newStates: ObjectState[], prevSelectedStateIDs: number[]): number[] {
+    if (!prevSelectedStateIDs.length) {
+        return prevSelectedStateIDs;
+    }
+
+    const available = new Set(newStates.map((_state: ObjectState) => _state.clientID));
+    const updated = prevSelectedStateIDs.filter((clientID: number) => available.has(clientID));
+
+    return updated.length === prevSelectedStateIDs.length ? prevSelectedStateIDs : updated;
 }
 
 function computeZRange(states: ObjectState[]): [number, number] {
@@ -142,6 +155,9 @@ const defaultState: AnnotationState = {
         activatedStateID: null,
         activatedElementID: null,
         activatedAttributeID: null,
+        selectedStateIDs: [],
+        selectionAnchorStateID: null,
+        objectsClipboard: EMPTY_CLIPBOARD,
         highlightedConflict: null,
         saving: {
             forceExit: false,
@@ -421,6 +437,8 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     activatedStateID: updateActivatedStateID(states, activatedStateID),
+                    selectedStateIDs: [],
+                    selectionAnchorStateID: null,
                     highlightedConflict: null,
                     states,
                     initialized: true,
@@ -692,6 +710,32 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.SELECT_OBJECTS: {
+            const { clientIDs, anchorStateID } = action.payload;
+            const { states } = state.annotations;
+            const available = new Set(states.map((_state: ObjectState) => _state.clientID));
+            const selectedStateIDs = (clientIDs as number[]).filter((clientID) => available.has(clientID));
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    selectedStateIDs,
+                    selectionAnchorStateID: selectedStateIDs.length ? anchorStateID : null,
+                },
+            };
+        }
+        case AnnotationActionTypes.SET_OBJECTS_CLIPBOARD: {
+            const { clipboard } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    objectsClipboard: clipboard,
+                },
+            };
+        }
         case AnnotationActionTypes.ACTIVATE_OBJECT: {
             const { activatedStateID, activatedElementID, activatedAttributeID } = action.payload;
             const {
@@ -763,6 +807,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     history,
                     activatedStateID: null,
+                    selectedStateIDs: updateSelectedStateIDs(nextStates, state.annotations.selectedStateIDs),
                     states: nextStates,
                     renderData: getAnnotationsRenderData(nextStates, state.annotations.filters),
                 },
@@ -1000,6 +1045,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     activatedStateID: updateActivatedStateID(states, activatedStateID),
+                    selectedStateIDs: updateSelectedStateIDs(states, state.annotations.selectedStateIDs),
                     states,
                     renderData: getAnnotationsRenderData(states, state.annotations.filters),
                     history,

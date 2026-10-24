@@ -1275,6 +1275,14 @@ export class Task extends Session {
         return result;
     }
 
+    async appendData(
+        clientFiles: File[],
+        options?: { updateStatusCallback?: (updateData: Request | UpdateStatusData) => void },
+    ): Promise<Task> {
+        const result = await PluginRegistry.apiWrapper.call(this, Task.prototype.appendData, clientFiles, options);
+        return result;
+    }
+
     async delete(): Promise<void> {
         const result = await PluginRegistry.apiWrapper.call(this, Task.prototype.delete);
         return result;

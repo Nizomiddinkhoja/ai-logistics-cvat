@@ -22,8 +22,10 @@ import JobListComponent from 'components/task-page/job-list';
 import ModelRunnerModal from 'components/model-runner-modal/model-runner-dialog';
 import CVATLoadingSpinner from 'components/common/loading-spinner';
 import MoveTaskModal from 'components/move-task-modal/move-task-modal';
+import AppendTaskDataModal from 'components/append-task-data-modal/append-task-data-modal';
 import { CombinedState } from 'reducers';
 import { updateTaskAsync, updateTaskMetadataAsync } from 'actions/tasks-actions';
+import { t } from 'i18n';
 import TopBarComponent from './top-bar';
 import DetailsComponent from './details';
 import { getCloudStorageById } from './cloud-storage-editor';
@@ -74,7 +76,7 @@ function TaskPageComponent(): JSX.Element {
             }
         } catch (error: any) {
             notification.error({
-                message: 'Could not receive the requested task from the server',
+                message: t('Could not receive the requested task from the server'),
                 description: error.toString(),
             });
         }
@@ -155,6 +157,7 @@ function TaskPageComponent(): JSX.Element {
             </Row>
             <ModelRunnerModal />
             <MoveTaskModal onUpdateTask={onUpdateTask} />
+            <AppendTaskDataModal onAppended={receiveTask} />
         </div>
     );
 }

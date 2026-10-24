@@ -6,23 +6,24 @@ import { QualityRequirement } from 'cvat-core-wrapper';
 import {
     QualityRequirementAnnotationType, QualityRequirementMetric, SerializedQualityRequirementSaveData,
 } from 'cvat-core/src/quality/server-response-types';
+import { t } from 'i18n';
 
 export const ANNOTATION_TYPE_LABELS: Record<string, string> = {
-    [QualityRequirementAnnotationType.TAG]: 'Tag',
-    [QualityRequirementAnnotationType.RECTANGLE]: 'Rectangle',
-    [QualityRequirementAnnotationType.SKELETON]: 'Skeleton',
-    [QualityRequirementAnnotationType.SKELETON_KEYPOINT]: 'Skeleton keypoint',
-    [QualityRequirementAnnotationType.POINTS]: 'Points',
-    [QualityRequirementAnnotationType.POLYLINE]: 'Polyline',
-    [QualityRequirementAnnotationType.MASK]: 'Mask',
-    [QualityRequirementAnnotationType.POLYGON]: 'Polygon',
-    [QualityRequirementAnnotationType.ELLIPSE]: 'Ellipse',
+    [QualityRequirementAnnotationType.TAG]: t('Tag'),
+    [QualityRequirementAnnotationType.RECTANGLE]: t('Rectangle'),
+    [QualityRequirementAnnotationType.SKELETON]: t('Skeleton'),
+    [QualityRequirementAnnotationType.SKELETON_KEYPOINT]: t('Skeleton keypoint'),
+    [QualityRequirementAnnotationType.POINTS]: t('Points'),
+    [QualityRequirementAnnotationType.POLYLINE]: t('Polyline'),
+    [QualityRequirementAnnotationType.MASK]: t('Mask'),
+    [QualityRequirementAnnotationType.POLYGON]: t('Polygon'),
+    [QualityRequirementAnnotationType.ELLIPSE]: t('Ellipse'),
 };
 
 export const METRIC_LABELS: Record<string, string> = {
-    [QualityRequirementMetric.ACCURACY]: 'Accuracy',
-    [QualityRequirementMetric.PRECISION]: 'Precision',
-    [QualityRequirementMetric.RECALL]: 'Recall',
+    [QualityRequirementMetric.ACCURACY]: t('Accuracy'),
+    [QualityRequirementMetric.PRECISION]: t('Precision'),
+    [QualityRequirementMetric.RECALL]: t('Recall'),
     f1_score: 'F1 Score',
 };
 

@@ -10,6 +10,7 @@ import { getCachedAudioData } from 'audio/utils/audio-data-cache';
 import { CombinedState } from 'reducers';
 import { shallowEqual } from 'utils/redux';
 import GlobalHotKeys from 'utils/mousetrap-react';
+import { t } from 'i18n';
 
 import AudioCanvasSkeleton from './skeleton/audio-canvas-skeleton';
 import { useAudioWaveform } from './hooks/use-audio-waveform';
@@ -88,7 +89,7 @@ function AudioCanvasWrapper(): JSX.Element {
             <div className='cvat-audio-canvas-wrapper'>
                 <div className='cvat-audio-placeholder'>
                     <p className='cvat-audio-placeholder-text'>
-                        {`Failed to load audio: ${audioError}`}
+                        {t('Failed to load audio: {{audioError}}', { audioError })}
                     </p>
                 </div>
             </div>
@@ -103,7 +104,7 @@ function AudioCanvasWrapper(): JSX.Element {
             <div className='cvat-audio-canvas-wrapper'>
                 <div className='cvat-audio-placeholder'>
                     <p className='cvat-audio-placeholder-text'>
-                        No audio data available for this job.
+                        {t('No audio data available for this job.')}
                     </p>
                 </div>
             </div>

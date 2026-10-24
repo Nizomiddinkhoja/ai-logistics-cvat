@@ -89,6 +89,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
     private interactionHandler: InteractionHandler;
     private activeElement: ActiveElement;
     private highlightedElements: HighlightedElements;
+    private selectedObjects: number[];
+    private selectionBox: SVG.Rect | null;
+    private selectionBoxOrigin: { x: number; y: number } | null;
     private configuration: Configuration;
     private snapToAngleResize: number;
     private draggableShape: SVG.Shape | null;
@@ -1555,14 +1558,58 @@ export class CanvasViewImpl implements CanvasView, Listener {
             });
 
             let startCenter = null;
+            // other objects of the multi selection, they follow the dragged one
+            let companions: { clientID: number; shape: SVG.Shape }[] = [];
+            let appliedDelta = { x: 0, y: 0 };
+
+            const collectCompanions = (): void => {
+                companions = [];
+                appliedDelta = { x: 0, y: 0 };
+
+                const selected = this.selectedObjects;
+                if (selected.length < 2 || !selected.includes(state.clientID)) {
+                    return;
+                }
+
+                for (const clientID of selected) {
+                    if (clientID === state.clientID) {
+                        continue;
+                    }
+
+                    const companionState = this.controller.objects
+                        .find((_state: any): boolean => _state.clientID === clientID);
+                    const companionShape = this.svgShapes[clientID];
+
+                    if (companionState && companionShape && !this.stateIsLocked(companionState)) {
+                        companions.push({ clientID, shape: companionShape });
+                    }
+                }
+            };
+
             draggableInstance.on('dragstart', (): void => {
                 onDragStart();
                 this.draggableShape = shape;
                 const { cx, cy } = shape.bbox();
                 startCenter = { x: cx, y: cy };
                 start = Date.now();
+                collectCompanions();
             }).on('dragmove', (e: CustomEvent): void => {
                 onDragMove();
+
+                if (companions.length) {
+                    // the shapes are only moved for the preview, the authoritative update
+                    // comes from the object states after the drag is over
+                    const { cx, cy } = shape.bbox();
+                    const stepX = cx - startCenter.x - appliedDelta.x;
+                    const stepY = cy - startCenter.y - appliedDelta.y;
+
+                    if (stepX || stepY) {
+                        companions.forEach(({ shape: companion }): void => {
+                            companion.dmove(stepX, stepY);
+                        });
+                        appliedDelta = { x: appliedDelta.x + stepX, y: appliedDelta.y + stepY };
+                    }
+                }
                 if (state.shapeType === 'skeleton' && e.target) {
                     const { instance } = e.target as any;
                     const [x, y] = [instance.x(), instance.y()];
@@ -1642,11 +1689,29 @@ export class CanvasViewImpl implements CanvasView, Listener {
                             },
                         }),
                     );
+
+                    if (companions.length) {
+                        this.canvas.dispatchEvent(
+                            new CustomEvent('canvas.dragmultiple', {
+                                bubbles: false,
+                                cancelable: true,
+                                detail: {
+                                    clientIDs: companions.map(({ clientID }) => clientID),
+                                    dx: cx - startCenter.x,
+                                    dy: cy - startCenter.y,
+                                },
+                            }),
+                        );
+                    }
                 }
+
+                companions = [];
             }).on('dragabort', (): void => {
                 onDragEnd();
                 this.draggableShape = null;
                 aborted = true;
+                companions.forEach(({ clientID }): void => this.resetViewPosition(clientID));
+                companions = [];
                 // disable internal drag events of SVG.js
                 // call chain is (mouseup -> SVG.handler.end -> SVG.handler.drag -> dragend)
                 window.dispatchEvent(new MouseEvent('mouseup'));
@@ -1930,6 +1995,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
     };
 
     private onMouseUp = (event: MouseEvent): void => {
+        if (this.selectionBox) {
+            this.finishSelectionBox(event);
+        }
+
         if (event.button === 0 || event.button === 1) {
             this.controller.disableDrag();
         }
@@ -1950,6 +2019,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
             elementsIDs: [],
             severity: null,
         };
+        this.selectedObjects = [];
+        this.selectionBox = null;
+        this.selectionBoxOrigin = null;
         this.configuration = model.configuration;
         this.mode = Mode.IDLE;
         this.snapToAngleResize = consts.SNAP_TO_ANGLE_RESIZE_DEFAULT;
@@ -2132,6 +2204,12 @@ export class CanvasViewImpl implements CanvasView, Listener {
         });
 
         this.canvas.addEventListener('mousedown', (event): void => {
+            if (this.isSelectionBoxGesture(event)) {
+                this.startSelectionBox(event);
+                event.preventDefault();
+                return;
+            }
+
             if ([0, 1].includes(event.button)) {
                 if (
                     [Mode.IDLE, Mode.DRAG_CANVAS, Mode.MERGE, Mode.SPLIT]
@@ -2180,6 +2258,11 @@ export class CanvasViewImpl implements CanvasView, Listener {
         });
 
         this.canvas.addEventListener('mousemove', (e): void => {
+            if (this.selectionBox) {
+                this.updateSelectionBox(e);
+                return;
+            }
+
             this.controller.drag(e.clientX, e.clientY);
 
             if (this.mode !== Mode.IDLE) return;
@@ -2397,6 +2480,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         } else if (reason === UpdateReasons.OBJECTS_UPDATED) {
             this.objectSelector.resetSelected();
             this.setupObjects(this.controller.objects);
+            this.applySelection(this.controller.selectedObjects);
             if (this.mode === Mode.MERGE) {
                 this.mergeHandler.repeatSelection();
             }
@@ -2436,6 +2520,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
             this.activate(this.controller.activeElement);
         } else if (reason === UpdateReasons.SHAPE_HIGHLIGHTED) {
             this.highlight(this.controller.highlightedElements);
+        } else if (reason === UpdateReasons.OBJECTS_SELECTED) {
+            this.applySelection(this.controller.selectedObjects);
         } else if (reason === UpdateReasons.SELECT_REGION) {
             if (this.mode === Mode.SELECT_REGION) {
                 this.regionSelector.select(true);
@@ -2644,6 +2730,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
             window.document.removeEventListener('keydown', this.onKeyDown);
             window.document.removeEventListener('keyup', this.onKeyUp);
             window.document.removeEventListener('mouseup', this.onMouseUp);
+            this.removeSelectionBox();
             this.interactionHandler.destroy();
         }
 
@@ -3092,13 +3179,15 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 }
             }
 
-            this.svgShapes[state.clientID].on('click.canvas', (): void => {
+            this.svgShapes[state.clientID].on('click.canvas', (event: MouseEvent): void => {
                 this.canvas.dispatchEvent(
                     new CustomEvent('canvas.clicked', {
                         bubbles: false,
                         cancelable: true,
                         detail: {
                             state,
+                            ctrlKey: event.ctrlKey || event.metaKey,
+                            shiftKey: event.shiftKey,
                         },
                     }),
                 );
@@ -3426,6 +3515,117 @@ export class CanvasViewImpl implements CanvasView, Listener {
             const clientID = this.highlightedElements.elementsIDs[0];
             this.activate({ clientID, attributeID: null });
         }
+    }
+
+    private applySelection(selectedObjects: number[]): void {
+        const toggleSelectionClass = (clientID: number, add: boolean): void => {
+            const shapeView = window.document.getElementById(`cvat_canvas_shape_${clientID}`);
+            if (shapeView) {
+                shapeView.classList.toggle(consts.SELECTED_SHAPE_CLASSNAME, add);
+            }
+        };
+
+        this.selectedObjects.forEach((clientID: number): void => toggleSelectionClass(clientID, false));
+        this.selectedObjects = [...selectedObjects];
+        this.selectedObjects.forEach((clientID: number): void => toggleSelectionClass(clientID, true));
+    }
+
+    // A rubber band is drawn when a user holds shift and drags over an empty part of the image
+    private isSelectionBoxGesture(event: MouseEvent): boolean {
+        return event.button === 0 && event.shiftKey && !event.altKey && !event.ctrlKey &&
+            this.mode === Mode.IDLE && event.target === this.content;
+    }
+
+    private selectionBoxCoordinates(event: MouseEvent): {
+        xtl: number; ytl: number; xbr: number; ybr: number;
+    } {
+        const [x, y] = translateToSVG(this.content, [event.clientX, event.clientY]);
+        const origin = this.selectionBoxOrigin as { x: number; y: number };
+
+        return {
+            xtl: Math.min(origin.x, x),
+            ytl: Math.min(origin.y, y),
+            xbr: Math.max(origin.x, x),
+            ybr: Math.max(origin.y, y),
+        };
+    }
+
+    private startSelectionBox(event: MouseEvent): void {
+        const [x, y] = translateToSVG(this.content, [event.clientX, event.clientY]);
+        this.selectionBoxOrigin = { x, y };
+        this.selectionBox = this.adoptedContent.rect().addClass('cvat_canvas_selection_box');
+        this.selectionBox.attr({
+            x,
+            y,
+            width: 0,
+            height: 0,
+            'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
+        });
+    }
+
+    private updateSelectionBox(event: MouseEvent): void {
+        if (!this.selectionBox || !this.selectionBoxOrigin) {
+            return;
+        }
+
+        const box = this.selectionBoxCoordinates(event);
+        this.selectionBox.attr({
+            x: box.xtl,
+            y: box.ytl,
+            width: box.xbr - box.xtl,
+            height: box.ybr - box.ytl,
+        });
+    }
+
+    private removeSelectionBox(): void {
+        this.selectionBox?.remove();
+        this.selectionBox = null;
+        this.selectionBoxOrigin = null;
+    }
+
+    private finishSelectionBox(event: MouseEvent): void {
+        if (!this.selectionBox || !this.selectionBoxOrigin) {
+            return;
+        }
+
+        const box = this.selectionBoxCoordinates(event);
+        this.removeSelectionBox();
+
+        // ignore accidental micro drags, they are just clicks on the image
+        const threshold = consts.MIN_SELECTION_BOX_SIZE / this.geometry.scale;
+        if (box.xbr - box.xtl < threshold || box.ybr - box.ytl < threshold) {
+            return;
+        }
+
+        const states = this.controller.objects;
+        const shapes = (this.adoptedContent.select('.cvat_canvas_shape') as any).members
+            .filter((shape: SVG.Shape): boolean => !shape.hasClass('cvat_canvas_hidden'));
+
+        const selected: any[] = [];
+        for (const shape of shapes) {
+            const bbox = shape.bbox();
+            const fitsIntoBox = bbox.x >= box.xtl && bbox.y >= box.ytl &&
+                bbox.x + bbox.width <= box.xbr && bbox.y + bbox.height <= box.ybr;
+
+            if (fitsIntoBox) {
+                const clientID = +shape.attr('clientID');
+                const objectState = states.find((state: any): boolean => state.clientID === clientID);
+                if (objectState) {
+                    selected.push(objectState);
+                }
+            }
+        }
+
+        this.canvas.dispatchEvent(
+            new CustomEvent('canvas.selected', {
+                bubbles: false,
+                cancelable: true,
+                detail: {
+                    states: selected,
+                    append: true,
+                },
+            }),
+        );
     }
 
     // Update text position after corresponding box has been moved, resized, etc.
@@ -3974,6 +4174,8 @@ export class CanvasViewImpl implements CanvasView, Listener {
                             cancelable: true,
                             detail: {
                                 state: element,
+                                ctrlKey: e.ctrlKey || e.metaKey,
+                                shiftKey: e.shiftKey,
                             },
                         }),
                     );

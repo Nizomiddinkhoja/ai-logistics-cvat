@@ -776,6 +776,9 @@ class TestPatchLabels(_TestLabelsPermissionsBase):
             ("1", {"values": ["3", "2", "1", "4"]}, {"values": ["3", "2", "1", "4"]}),
             ("2", {"values": ["1", "2", "3", "4"]}, {"values": ["1", "2", "3", "4"]}),
             ("3", {"values": ["false"]}, {"values": ["false"]}),
+            ("1", {"values": ["1", "2"]}, {"values": ["1", "2"], "default_value": "1"}),
+            ("1", {"values": ["2", "4"]}, {"values": ["2", "4"], "default_value": "2"}),
+            ("5", {"values": ["0", "200", "1"]}, {"values": ["0", "200", "1"]}),
             (
                 "4",
                 {"default_value": "updated", "values": ["updated"]},
@@ -806,9 +809,6 @@ class TestPatchLabels(_TestLabelsPermissionsBase):
     @pytest.mark.parametrize(
         "attribute_name, fields, error",
         [
-            ("1", {"values": ["1", "2"]}, 'Attribute field "values" can only be appended'),
-            ("1", {"values": ["1", "2", "4"]}, 'Attribute field "values" can only be appended'),
-            ("5", {"values": ["0", "200", "1"]}, 'Attribute field "values" cannot be changed'),
             ("1", {"mutable": True}, 'Attribute field "mutable" cannot be changed'),
             ("1", {"input_type": "text"}, 'Attribute field "input_type" cannot be changed'),
             ("1", {"default_value": "4"}, 'Attribute field "default_value" is invalid'),

@@ -13,6 +13,8 @@ import {
     rotateCurrentFrame,
     repeatDrawShapeAsync,
     pasteShapeAsync,
+    pasteObjectsFromClipboardAsync,
+    PasteFromClipboardResult,
     resetAnnotationsGroup,
 } from 'actions/annotation-actions';
 import ControlsSideBarComponent from 'components/annotation-page/standard-workspace/controls-side-bar/controls-side-bar';
@@ -27,6 +29,7 @@ interface StateToProps {
     normalizedKeyMap: Record<string, string>;
     labels: CombinedState['annotation']['job']['labels'];
     frameData: any;
+    clipboardObjectsCount: number;
 }
 
 interface DispatchToProps {
@@ -36,6 +39,7 @@ interface DispatchToProps {
     resetGroup(): void;
     repeatDrawShape(): void;
     pasteShape(): void;
+    pasteObjectsFromClipboard(): Promise<PasteFromClipboardResult>;
     redrawShape(): void;
 }
 
@@ -44,6 +48,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         annotation: {
             canvas: { instance: canvasInstance, activeControl },
             job: { labels },
+            annotations: { objectsClipboard },
             player: {
                 frame: { data: frameData },
             },
@@ -62,6 +67,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         normalizedKeyMap,
         keyMap,
         frameData,
+        clipboardObjectsCount: objectsClipboard.objects.length,
     };
 }
 
@@ -81,6 +87,9 @@ function dispatchToProps(dispatch: any): DispatchToProps {
         },
         pasteShape(): void {
             dispatch(pasteShapeAsync());
+        },
+        pasteObjectsFromClipboard(): Promise<PasteFromClipboardResult> {
+            return dispatch(pasteObjectsFromClipboardAsync());
         },
         resetGroup(): void {
             dispatch(resetAnnotationsGroup());

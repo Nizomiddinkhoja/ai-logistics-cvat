@@ -75,6 +75,7 @@ import '../styles.scss';
 import appConfig from 'config';
 import EventRecorder from 'utils/event-recorder';
 import { authQuery } from 'utils/auth-query';
+import { t } from 'i18n';
 import CVATMarkdown from './common/cvat-markdown';
 import EmailConfirmationPage from './email-confirmation-pages/email-confirmed';
 import EmailVerificationSentPage from './email-confirmation-pages/email-verification-sent';
@@ -232,7 +233,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
             });
         })
             .catch((error: unknown) => {
-                const healthCheckError = error instanceof Error ? error.message : 'The CVAT server is not reachable.';
+                const healthCheckError = error instanceof Error ? error.message : t('The CVAT server is not reachable.');
 
                 this.setState({
                     healthIinitialized: true,
@@ -248,22 +249,22 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
         if (showPlatformNotification()) {
             stopNotifications(false);
             Modal.warning({
-                title: 'Unsupported platform detected',
+                title: t('Unsupported platform detected'),
                 className: 'cvat-modal-unsupported-platform-warning',
                 content: (
                     <>
                         <Row>
                             <Col>
                                 <Text>
-                                    {`The browser you are using is ${name} ${version} based on ${engine}.` +
-                                        ' CVAT was tested in the latest versions of Chrome and Firefox.' +
-                                        ' We recommend to use Chrome (or another Chromium based browser)'}
+                                    {t('The browser you are using is {{name}} {{version}} based on {{engine}}.', { name, version, engine }) +
+                                        t(' CVAT was tested in the latest versions of Chrome and Firefox.') +
+                                        t(' We recommend to use Chrome (or another Chromium based browser)')}
                                 </Text>
                             </Col>
                         </Row>
                         <Row>
                             <Col>
-                                <Text type='secondary'>{`The operating system is ${os}`}</Text>
+                                <Text type='secondary'>{t('The operating system is {{os}}', { os })}</Text>
                             </Col>
                         </Row>
                     </>
@@ -273,12 +274,12 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
         } else if (showUnsupportedNotification()) {
             stopNotifications(false);
             Modal.warning({
-                title: 'Unsupported features detected',
+                title: t('Unsupported features detected'),
                 className: 'cvat-modal-unsupported-features-warning',
                 content: (
                     <Text>
-                        {`${name} v${version} does not support API, which is used by CVAT. `}
-                        It is strongly recommended to update your browser.
+                        {t('{{name}} v{{version}} does not support API, which is used by CVAT. ', { name, version })}
+                        {t('It is strongly recommended to update your browser.')}
                     </Text>
                 ),
                 onOk: () => stopNotifications(true),
@@ -458,7 +459,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
                 ),
                 duration: null,
                 description: errorLength > appConfig.MAXIMUM_NOTIFICATION_MESSAGE_LENGTH ?
-                    'Open the Browser Console to get details' : <CVATMarkdown history={history}>{error}</CVATMarkdown>,
+                    t('Open the Browser Console to get details') : <CVATMarkdown history={history}>{error}</CVATMarkdown>,
             });
 
             if (shouldLog) {
@@ -678,7 +679,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
                 <Space align='center' direction='vertical' className='cvat-spinner cvat-server-unavailable'>
                     <DisconnectOutlined className='cvat-disconnected' />
                     <Text className='cvat-server-unavailable-title' strong>
-                        Cannot connect to the server
+                        {t('Cannot connect to the server')}
                     </Text>
                     <ServerUnavailableComponent details={healthCheckError} />
                 </Space>
@@ -686,7 +687,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
         }
 
         return (
-            <Spin size='large' fullscreen className='cvat-spinner' tip='Connecting...' />
+            <Spin size='large' fullscreen className='cvat-spinner' tip={t('Connecting...')} />
         );
     }
 }

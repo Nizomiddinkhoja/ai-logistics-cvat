@@ -9,6 +9,7 @@ import { usePlugins } from 'utils/hooks';
 import { CVATMenuEditLabel } from 'components/common/cvat-menu-edit-label';
 import { LabelWithCountHOF } from 'components/common/label-with-count';
 import { Job, JobType } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 
 interface MenuItemsData {
     jobId: number;
@@ -93,7 +94,7 @@ export default function JobActionsItems(
 
     menuItems.push([{
         key: MenuKeys.TASK,
-        label: withCount('Go to the task', MenuKeys.TASK, `/tasks/${taskId}`),
+        label: withCount(t('Go to the task'), MenuKeys.TASK, `/tasks/${taskId}`),
         disabled: isDisabled(MenuKeys.TASK),
     }, 0]);
 
@@ -101,7 +102,7 @@ export default function JobActionsItems(
         menuItems.push([{
             key: MenuKeys.GO_TO_PARENT,
             onClick: onGoToParent,
-            label: withCount('Go to parent', MenuKeys.GO_TO_PARENT),
+            label: withCount(t('Go to parent'), MenuKeys.GO_TO_PARENT),
             disabled: isDisabled(MenuKeys.GO_TO_PARENT),
         }, 10]);
     }
@@ -109,7 +110,7 @@ export default function JobActionsItems(
         menuItems.push([{
             key: MenuKeys.GO_TO_REPLICAS,
             onClick: onGoToReplicas,
-            label: withCount('Go to replicas', MenuKeys.GO_TO_REPLICAS),
+            label: withCount(t('Go to replicas'), MenuKeys.GO_TO_REPLICAS),
             disabled: isDisabled(MenuKeys.GO_TO_REPLICAS),
         }, 20]);
     }
@@ -117,7 +118,7 @@ export default function JobActionsItems(
     if (projectId) {
         menuItems.push([{
             key: MenuKeys.PROJECT,
-            label: withCount('Go to the project', MenuKeys.PROJECT, `/projects/${projectId}`),
+            label: withCount(t('Go to the project'), MenuKeys.PROJECT, `/projects/${projectId}`),
             disabled: isDisabled(MenuKeys.PROJECT),
         }, 30]);
     }
@@ -126,7 +127,7 @@ export default function JobActionsItems(
         menuItems.push([{
             key: MenuKeys.BUG_TRACKER,
             onClick: onOpenBugTracker,
-            label: withCount('Go to the bug tracker', MenuKeys.BUG_TRACKER),
+            label: withCount(t('Go to the bug tracker'), MenuKeys.BUG_TRACKER),
             disabled: isDisabled(MenuKeys.BUG_TRACKER),
         }, 40]);
     }
@@ -134,14 +135,14 @@ export default function JobActionsItems(
     menuItems.push([{
         key: MenuKeys.IMPORT_JOB,
         onClick: onImportAnnotations,
-        label: withCount('Import annotations', MenuKeys.IMPORT_JOB),
+        label: withCount(t('Import annotations'), MenuKeys.IMPORT_JOB),
         disabled: isDisabled(MenuKeys.IMPORT_JOB),
     }, 50]);
 
     menuItems.push([{
         key: MenuKeys.EXPORT_JOB,
         onClick: onExportAnnotations,
-        label: withCount('Export annotations', MenuKeys.EXPORT_JOB),
+        label: withCount(t('Export annotations'), MenuKeys.EXPORT_JOB),
         disabled: isExportAnnotationsDisabled || isDisabled(MenuKeys.EXPORT_JOB),
     }, 60]);
 
@@ -149,7 +150,7 @@ export default function JobActionsItems(
         menuItems.push([{
             key: MenuKeys.MERGE_SPECIFIC_CONSENSUS_JOBS,
             onClick: onMergeConsensusJob,
-            label: withCount('Merge consensus job', MenuKeys.MERGE_SPECIFIC_CONSENSUS_JOBS),
+            label: withCount(t('Merge consensus job'), MenuKeys.MERGE_SPECIFIC_CONSENSUS_JOBS),
             disabled: isMergingConsensusEnabled || isDisabled(MenuKeys.MERGE_SPECIFIC_CONSENSUS_JOBS),
             itemIcon: isMergingConsensusEnabled ? <LoadingOutlined /> : undefined,
         }, 70]);
@@ -158,27 +159,27 @@ export default function JobActionsItems(
     menuItems.push([{
         key: MenuKeys.EDIT_ASSIGNEE,
         onClick: () => startEditField('assignee'),
-        label: <CVATMenuEditLabel>{withCount('Assignee', MenuKeys.EDIT_ASSIGNEE)}</CVATMenuEditLabel>,
+        label: <CVATMenuEditLabel>{withCount(t('Assignee'), MenuKeys.EDIT_ASSIGNEE)}</CVATMenuEditLabel>,
         disabled: isDisabled(MenuKeys.EDIT_ASSIGNEE),
     }, 80]);
 
     menuItems.push([{
         key: MenuKeys.EDIT_STATE,
         onClick: () => startEditField('state'),
-        label: <CVATMenuEditLabel>{withCount('State', MenuKeys.EDIT_STATE)}</CVATMenuEditLabel>,
+        label: <CVATMenuEditLabel>{withCount(t('State'), MenuKeys.EDIT_STATE)}</CVATMenuEditLabel>,
         disabled: isDisabled(MenuKeys.EDIT_STATE),
     }, 90]);
 
     menuItems.push([{
         key: MenuKeys.EDIT_STAGE,
         onClick: () => startEditField('stage'),
-        label: <CVATMenuEditLabel>{withCount('Stage', MenuKeys.EDIT_STAGE)}</CVATMenuEditLabel>,
+        label: <CVATMenuEditLabel>{withCount(t('Stage'), MenuKeys.EDIT_STAGE)}</CVATMenuEditLabel>,
         disabled: isDisabled(MenuKeys.EDIT_STAGE),
     }, 100]);
 
     menuItems.push([{
         key: MenuKeys.VIEW_ANALYTICS,
-        label: withCount('View analytics', MenuKeys.VIEW_ANALYTICS, `/tasks/${taskId}/jobs/${jobId}/analytics`),
+        label: withCount(t('View analytics'), MenuKeys.VIEW_ANALYTICS, `/tasks/${taskId}/jobs/${jobId}/analytics`),
         disabled: isDisabled(MenuKeys.VIEW_ANALYTICS),
     }, 110]);
 
@@ -187,7 +188,7 @@ export default function JobActionsItems(
         menuItems.push([{
             key: MenuKeys.DELETE,
             onClick: onDeleteJob,
-            label: withCount('Delete', MenuKeys.DELETE),
+            label: withCount(t('Delete'), MenuKeys.DELETE),
             disabled: isDisabled(MenuKeys.DELETE),
         }, 120]);
     }

@@ -18,6 +18,7 @@ import {
 import CVATTooltip from 'components/common/cvat-tooltip';
 import CVATTable from 'components/common/cvat-table';
 import { sorter, tablePaginationPageSize } from 'utils/quality';
+import { t } from 'i18n';
 
 interface Props {
     task: Task;
@@ -95,7 +96,7 @@ function AllocationTable(props: Readonly<Props>): JSX.Element | null {
 
     const columns = [
         {
-            title: 'Frame',
+            title: t('Frame'),
             dataIndex: 'frame',
             key: 'frame',
             align: 'center' as const,
@@ -116,7 +117,7 @@ function AllocationTable(props: Readonly<Props>): JSX.Element | null {
             ),
         },
         {
-            title: 'Name',
+            title: t('Name'),
             dataIndex: 'name',
             key: 'name',
             align: 'center' as const,
@@ -143,12 +144,12 @@ function AllocationTable(props: Readonly<Props>): JSX.Element | null {
             },
         },
         {
-            title: 'Actions',
+            title: t('Actions'),
             dataIndex: 'active',
             key: 'actions',
             filters: [
-                { text: 'Active', value: true },
-                { text: 'Excluded', value: false },
+                { text: t('Active'), value: true },
+                { text: t('Excluded'), value: false },
             ],
             align: 'center' as const,
             sorter: sorter('active'),
@@ -172,7 +173,7 @@ function AllocationTable(props: Readonly<Props>): JSX.Element | null {
 
     return (
         <CVATTable
-            tableTitle='Frames'
+            tableTitle={t('Frames')}
             searchDataIndex={['name']}
             csvExport={{ filename: `allocation-table-task_${task.id}.csv` }}
             className='cvat-frame-allocation-table'

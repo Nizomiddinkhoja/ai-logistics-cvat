@@ -8,6 +8,7 @@ import Button from 'antd/lib/button';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
+import { t } from 'i18n';
 
 interface Props {
     currentLabel: string;
@@ -27,7 +28,7 @@ function ObjectSwitcher(props: Props): JSX.Element {
     const title = `${currentLabel} ${clientID} [${currentIndex + 1}/${objectsCount}]`;
     return (
         <div className='cvat-attribute-annotation-sidebar-object-switcher'>
-            <CVATTooltip title={`Previous object ${normalizedKeyMap.PREVIOUS_OBJECT}`}>
+            <CVATTooltip title={t('Previous object {{previousObject}}', { previousObject: normalizedKeyMap.PREVIOUS_OBJECT })}>
                 <Button
                     className='cvat-attribute-annotation-sidebar-object-switcher-left'
                     disabled={objectsCount <= 1}
@@ -41,7 +42,7 @@ function ObjectSwitcher(props: Props): JSX.Element {
                 <Text className='cvat-text'>{` ${clientID} `}</Text>
                 <Text strong>{`[${currentIndex + 1}/${objectsCount}]`}</Text>
             </CVATTooltip>
-            <CVATTooltip title={`Next object ${normalizedKeyMap.NEXT_OBJECT}`}>
+            <CVATTooltip title={t('Next object {{nextObject}}', { nextObject: normalizedKeyMap.NEXT_OBJECT })}>
                 <Button
                     className='cvat-attribute-annotation-sidebar-object-switcher-right'
                     disabled={objectsCount <= 1}

@@ -14,6 +14,7 @@ import { SettingOutlined } from '@ant-design/icons';
 
 import CVATTooltop from 'components/common/cvat-tooltip';
 import { CombinedState } from 'reducers';
+import { t } from 'i18n';
 import ContextImageSelector from './context-image-selector';
 
 interface Props {
@@ -58,7 +59,7 @@ function ContextImage(props: Props): JSX.Element {
             if (!unmounted) {
                 setHasError(true);
                 notification.error({
-                    message: `Could not fetch context images. Frame: ${frameIndex}`,
+                    message: t('Could not fetch context images. Frame: {{frameIndex}}', { frameIndex }),
                     description: error.toString(),
                 });
             }
@@ -107,7 +108,7 @@ function ContextImage(props: Props): JSX.Element {
                 </div>
             </div>
             { (hasError ||
-                (!fetching && contextImageOffset >= Object.keys(contextImageData).length)) && <Text> No data </Text>}
+                (!fetching && contextImageOffset >= Object.keys(contextImageData).length)) && <Text> {t('No data')} </Text>}
             { fetching && <Spin size='small' /> }
             {
                 contextImageOffset < Object.keys(contextImageData).length &&

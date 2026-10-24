@@ -24,6 +24,7 @@ import { ResourceUpdateTypes } from 'utils/enums';
 import { confirmTransferModal } from 'utils/modals';
 
 import { makeBulkOperationAsync } from 'actions/bulk-actions';
+import { t } from 'i18n';
 import ProjectActionsItems from './actions-menu-items';
 
 interface Props {
@@ -113,7 +114,7 @@ function ProjectActionsComponent(props: Readonly<Props>): JSX.Element {
                     project.assignee = assignee;
                     await dispatch(updateProjectAsync(project));
                 },
-                (project, idx, total) => `Updating assignee for project #${project.id} (${idx + 1}/${total})`,
+                (project, idx, total) => t('Updating assignee for project #{{id}} ({{value}}/{{total}})', { id: project.id, value: idx + 1, total }),
             ));
         }
     }, [projectInstance, stopEditField, dispatch, collectObjectsForBulkUpdate, onUpdateProject]);
@@ -137,7 +138,7 @@ function ProjectActionsComponent(props: Readonly<Props>): JSX.Element {
                     project.organizationId = newOrganization?.id ?? null;
                     await dispatch(updateProjectAsync(project, {}, ResourceUpdateTypes.UPDATE_ORGANIZATION));
                 },
-                (project, idx, total) => `Updating organization for project #${project.id} (${idx + 1}/${total})`,
+                (project, idx, total) => t('Updating organization for project #{{id}} ({{value}}/{{total}})', { id: project.id, value: idx + 1, total }),
             )).then((processedCount: number) => {
                 if (processedCount) {
                     // as for some projects org has changed
@@ -173,11 +174,11 @@ function ProjectActionsComponent(props: Readonly<Props>): JSX.Element {
         const projectsToDelete = currentProjects.filter((project) => selectedIds.includes(project.id));
         Modal.confirm({
             title: isBulkMode ?
-                `Delete ${projectsToDelete.length} selected projects` :
-                `The project ${projectInstance.id} will be deleted`,
+                t('Delete {{length}} selected projects', { length: projectsToDelete.length }) :
+                t('The project {{id}} will be deleted', { id: projectInstance.id }),
             content: isBulkMode ?
-                'All related data (images, annotations) for all selected projects will be lost. Continue?' :
-                'All related data (images, annotations) will be lost. Continue?',
+                t('All related data (images, annotations) for all selected projects will be lost. Continue?') :
+                t('All related data (images, annotations) will be lost. Continue?'),
             className: 'cvat-modal-confirm-remove-project',
             onOk: () => {
                 dispatch(makeBulkOperationAsync<Project>(
@@ -185,14 +186,14 @@ function ProjectActionsComponent(props: Readonly<Props>): JSX.Element {
                     async (project) => {
                         await dispatch(deleteProjectAsync(project));
                     },
-                    (project, idx, total) => `Deleting project #${project.id} (${idx + 1}/${total})`,
+                    (project, idx, total) => t('Deleting project #{{id}} ({{value}}/{{total}})', { id: project.id, value: idx + 1, total }),
                 ));
             },
             okButtonProps: {
                 type: 'primary',
                 danger: true,
             },
-            okText: isBulkMode ? 'Delete selected' : 'Delete',
+            okText: isBulkMode ? t('Delete selected') : t('Delete'),
         });
     }, [projectInstance, currentProjects, selectedIds, isBulkMode]);
     let menuItems;

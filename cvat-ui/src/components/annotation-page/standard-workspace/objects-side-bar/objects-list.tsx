@@ -10,19 +10,21 @@ import {
     pointerWithin, useSensor, useSensors,
 } from '@dnd-kit/core';
 import {
-    CaretDownOutlined, CaretRightOutlined, EyeInvisibleOutlined,
-    EyeOutlined, VerticalAlignMiddleOutlined,
+    CaretDownOutlined, CaretRightOutlined, CopyOutlined, DeleteOutlined, EyeInvisibleOutlined,
+    EyeOutlined, LockOutlined, SnippetsOutlined, VerticalAlignMiddleOutlined,
 } from '@ant-design/icons';
 import Button from 'antd/lib/button';
 import Text from 'antd/lib/typography/Text';
 
 import { StatesOrdering, Workspace } from 'reducers';
-import { ObjectState } from 'cvat-core-wrapper';
+import { Label, ObjectState } from 'cvat-core-wrapper';
 import ObjectItemContainer from 'containers/annotation-page/standard-workspace/objects-side-bar/object-item';
 import CVATTooltip from 'components/common/cvat-tooltip';
+import LabelSelector from 'components/label-selector/label-selector';
 import {
     OBJECTS_SIDEBAR_EXPAND_Z_LAYER_EVENT,
 } from 'utils/objects-sidebar';
+import { t } from 'i18n';
 
 import ObjectListHeader from './objects-list-header';
 import {
@@ -38,6 +40,7 @@ import {
 } from './drag-and-drop';
 import LayerInsertDropArea from './drag-and-drop/layer-insert-drop-area';
 import LayerSection from './drag-and-drop/layer-section';
+import ObjectsListOrderingContext from './objects-list-ordering';
 
 interface Props {
     workspace: Workspace;
@@ -49,6 +52,7 @@ interface Props {
     hiddenLayers: Set<number>;
     sortedStatesID: number[];
     objectStates: ObjectState[];
+    selectedStateIDs: number[];
     visibleSkeletonElements: Record<number, number[]>;
     switchLockAllShortcut: string;
     switchHiddenAllShortcut: string;
@@ -66,6 +70,16 @@ interface Props {
     hideAllStates(): void;
     showAllStates(): void;
     changeShowGroundTruth(): void;
+    clearSelection(): void;
+    lockSelectedStates(): void;
+    hideSelectedStates(): void;
+    removeSelectedStates(): void;
+    selectionLabels: Label[];
+    changeSelectedStatesLabel(label: Label): void;
+    clipboardObjectsCount: number;
+    copySelectedStates(): void;
+    pasteFromClipboard(): void;
+    clearClipboard(): void;
 }
 
 function ObjectListComponent(props: Props): JSX.Element {
@@ -79,6 +93,7 @@ function ObjectListComponent(props: Props): JSX.Element {
         hiddenLayers,
         sortedStatesID,
         objectStates,
+        selectedStateIDs,
         visibleSkeletonElements,
         switchLockAllShortcut,
         switchHiddenAllShortcut,
@@ -96,6 +111,16 @@ function ObjectListComponent(props: Props): JSX.Element {
         hideAllStates,
         showAllStates,
         changeShowGroundTruth,
+        clearSelection,
+        lockSelectedStates,
+        hideSelectedStates,
+        removeSelectedStates,
+        selectionLabels,
+        changeSelectedStatesLabel,
+        clipboardObjectsCount,
+        copySelectedStates,
+        pasteFromClipboard,
+        clearClipboard,
     } = props;
 
     const sensors = useSensors(useSensor(PointerSensor, {
@@ -109,6 +134,8 @@ function ObjectListComponent(props: Props): JSX.Element {
     const [activeDragID, setActiveDragID] = useState<string | null>(null);
     const [dragPointerPosition, setDragPointerPosition] = useState<PointerPosition | null>(null);
     const [pendingExpandedLayerItemID, setPendingExpandedLayerItemID] = useState<string | null>(null);
+    // the label picked for the multi selection, it is kept to be applied to the next selections too
+    const [selectionLabel, setSelectionLabel] = useState<Label | null>(null);
     const layerObjectStates = objectStates.filter(isLayerState);
     const zLayers = Array.from(
         new Set(layerObjectStates.map((state) => state.zOrder)),
@@ -310,7 +337,7 @@ function ObjectListComponent(props: Props): JSX.Element {
 
         return (
             <div className='cvat-objects-sidebar-z-layer-mark cvat-objects-sidebar-z-layer-mark-dragging'>
-                <Text strong>Layer {zOrder}</Text>
+                <Text strong>{t('Layer')} {zOrder}</Text>
                 <span className='cvat-objects-sidebar-z-layer-visibility-indicator'>
                     {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                 </span>
@@ -318,8 +345,16 @@ function ObjectListComponent(props: Props): JSX.Element {
         );
     };
 
+    // the label shared by the whole selection, if there is one
+    const selectedLabelIDs = new Set(
+        objectStates
+            .filter((state: ObjectState) => selectedStateIDs.includes(state.clientID as number))
+            .map((state: ObjectState) => state.label.id),
+    );
+    const commonSelectedLabelID = selectedLabelIDs.size === 1 ? [...selectedLabelIDs][0] as number : null;
+
     return (
-        <>
+        <ObjectsListOrderingContext.Provider value={sortedStatesID}>
             <ObjectListHeader
                 workspace={workspace}
                 statesHidden={statesHidden}
@@ -339,12 +374,113 @@ function ObjectListComponent(props: Props): JSX.Element {
                 showAllStates={showAllStates}
                 changeShowGroundTruth={changeShowGroundTruth}
             />
+            {!!selectedStateIDs.length && (
+                <div className='cvat-objects-sidebar-selection-panel'>
+                    <div className='cvat-objects-sidebar-selection-label'>
+                        <CVATTooltip title={t('Set this label for every selected object')}>
+                            <LabelSelector
+                                className='cvat-objects-sidebar-selection-label-selector'
+                                size='small'
+                                placeholder={t('Label for the selected objects')}
+                                labels={selectionLabels}
+                                value={selectionLabel ?? commonSelectedLabelID}
+                                onChange={setSelectionLabel}
+                            />
+                        </CVATTooltip>
+                        <Button
+                            className='cvat-objects-sidebar-selection-label-apply-button'
+                            type='primary'
+                            size='small'
+                            disabled={!selectionLabel}
+                            onClick={() => {
+                                if (selectionLabel) {
+                                    changeSelectedStatesLabel(selectionLabel);
+                                }
+                            }}
+                        >
+                            {t('Apply')}
+                        </Button>
+                    </div>
+                    <Text strong>{t('{{length}} selected', { length: selectedStateIDs.length })}</Text>
+                    <div className='cvat-objects-sidebar-selection-actions'>
+                        <CVATTooltip title={t('Copy selected objects, they can be pasted on any other frame or task')}>
+                            <Button
+                                className='cvat-objects-sidebar-selection-copy-button'
+                                type='text'
+                                size='small'
+                                icon={<CopyOutlined />}
+                                onClick={copySelectedStates}
+                            />
+                        </CVATTooltip>
+                        <CVATTooltip title={t('Lock/unlock selected objects')}>
+                            <Button
+                                className='cvat-objects-sidebar-selection-lock-button'
+                                type='text'
+                                size='small'
+                                icon={<LockOutlined />}
+                                onClick={lockSelectedStates}
+                            />
+                        </CVATTooltip>
+                        <CVATTooltip title={t('Hide/show selected objects')}>
+                            <Button
+                                className='cvat-objects-sidebar-selection-hide-button'
+                                type='text'
+                                size='small'
+                                icon={<EyeInvisibleOutlined />}
+                                onClick={hideSelectedStates}
+                            />
+                        </CVATTooltip>
+                        <CVATTooltip title={t('Delete selected objects')}>
+                            <Button
+                                className='cvat-objects-sidebar-selection-remove-button'
+                                type='text'
+                                size='small'
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={removeSelectedStates}
+                            />
+                        </CVATTooltip>
+                        <Button
+                            className='cvat-objects-sidebar-selection-clear-button'
+                            type='link'
+                            size='small'
+                            onClick={clearSelection}
+                        >
+                            {t('Clear')}
+                        </Button>
+                    </div>
+                </div>
+            )}
+            {!!clipboardObjectsCount && (
+                <div className='cvat-objects-sidebar-clipboard-panel'>
+                    <Text type='secondary'>{t('Clipboard: {{clipboardObjectsCount}} object(s)', { clipboardObjectsCount })}</Text>
+                    <div className='cvat-objects-sidebar-clipboard-actions'>
+                        <CVATTooltip title={t('Paste the copied objects on the current frame')}>
+                            <Button
+                                className='cvat-objects-sidebar-clipboard-paste-button'
+                                type='text'
+                                size='small'
+                                icon={<SnippetsOutlined />}
+                                onClick={pasteFromClipboard}
+                            />
+                        </CVATTooltip>
+                        <Button
+                            className='cvat-objects-sidebar-clipboard-clear-button'
+                            type='link'
+                            size='small'
+                            onClick={clearClipboard}
+                        >
+                            {t('Clear')}
+                        </Button>
+                    </div>
+                </div>
+            )}
             <div className='cvat-objects-sidebar-states-list'>
                 {statesOrdering === StatesOrdering.LAYER ? (
                     <div className='cvat-objects-sidebar-z-layers-panel'>
                         <div className='cvat-objects-sidebar-z-layers-title'>
-                            <Text strong>Layer stack</Text>
-                            <CVATTooltip title='Compact layers'>
+                            <Text strong>{t('Layer stack')}</Text>
+                            <CVATTooltip title={t('Compact layers')}>
                                 <Button
                                     className='cvat-objects-sidebar-z-layers-compact-button'
                                     type='text'
@@ -353,7 +489,7 @@ function ObjectListComponent(props: Props): JSX.Element {
                                     onClick={compactLayers}
                                 />
                             </CVATTooltip>
-                            <CVATTooltip title={allLayersCollapsed ? 'Expand all layers' : 'Collapse all layers'}>
+                            <CVATTooltip title={allLayersCollapsed ? t('Expand all layers') : t('Collapse all layers')}>
                                 <Button
                                     className='cvat-objects-sidebar-z-layers-collapse-all-button'
                                     type='text'
@@ -425,7 +561,7 @@ function ObjectListComponent(props: Props): JSX.Element {
                     />
                 ))}
             </div>
-        </>
+        </ObjectsListOrderingContext.Provider>
     );
 }
 

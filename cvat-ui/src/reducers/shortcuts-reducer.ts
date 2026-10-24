@@ -7,27 +7,28 @@ import { AuthActions, AuthActionTypes } from 'actions/auth-actions';
 import { ShortcutsActions, ShortcutsActionsTypes } from 'actions/shortcuts-actions';
 import { KeyMap, KeyMapItem } from 'utils/mousetrap-react';
 import { conflictDetector } from 'utils/conflict-detector';
+import { t } from 'i18n';
 import { ShortcutsState } from '.';
 
 const capitalize = (text: string): string => text.slice(0, 1).toUpperCase() + text.slice(1);
 const prettify = (key: string): string => {
     switch (key.toLowerCase()) {
         case 'up':
-            return 'Arrow Up';
+            return t('Arrow Up');
         case 'down':
-            return 'Arrow Down';
+            return t('Arrow Down');
         case 'left':
-            return 'Arrow Left';
+            return t('Arrow Left');
         case 'right':
-            return 'Arrow Right';
+            return t('Arrow Right');
         case 'arrowup':
-            return 'Arrow Up';
+            return t('Arrow Up');
         case 'arrowdown':
-            return 'Arrow Down';
+            return t('Arrow Down');
         case 'arrowleft':
-            return 'Arrow Left';
+            return t('Arrow Left');
         case 'arrowright':
-            return 'Arrow Right';
+            return t('Arrow Right');
         default:
             return capitalize(key);
     }

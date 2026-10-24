@@ -17,6 +17,7 @@ import jsonLogic from 'json-logic-js';
 
 import { ResourceFilterHOC, defaultVisibility } from 'components/resource-sorting-filtering';
 import { generateCSV, downloadCSV as triggerCSVDownload } from 'utils/csv-writer';
+import { t } from 'i18n';
 import CVATTooltip from './cvat-tooltip';
 
 type Props = TableProps & {
@@ -190,12 +191,14 @@ function CVATTable(props: Props): JSX.Element {
                     <Space align='center'>
                         {Array.isArray(searchDataIndex) && !!searchDataIndex.length && (
                             <CVATTooltip
-                                title={`Search across fields: ${searchDataIndex
-                                    .map((dataIndex) => stringifyDataIndex(dataIndex)).join(', ')}`}
+                                title={t('Search across fields: {{fields}}', {
+                                    fields: searchDataIndex
+                                        .map((dataIndex) => stringifyDataIndex(dataIndex)).join(', '),
+                                })}
                             >
                                 <Input.Search
                                     className='cvat-table-search-bar'
-                                    placeholder='Search ..'
+                                    placeholder={t('Search ..')}
                                     onSearch={setSearchPhrase}
                                     enterButton
                                 />
@@ -242,8 +245,8 @@ function CVATTable(props: Props): JSX.Element {
 
                                     return (
                                         <Text key={group} type='secondary' className='cvat-table-columns-settings-hint'>
-                                            {params.hint ?? `You can select up to ${params.maxVisible} columns`}
-                                            {` (${visibleCount} of ${params.maxVisible})`}
+                                            {params.hint ?? t('You can select up to {{maxVisible}} columns', { maxVisible: params.maxVisible })}
+                                            {t(' ({{visibleCount}} of {{maxVisible}})', { visibleCount, maxVisible: params.maxVisible })}
                                         </Text>
                                     );
                                 }).filter((item): item is JSX.Element => item !== null);
@@ -294,7 +297,7 @@ function CVATTable(props: Props): JSX.Element {
                                     <div className='cvat-table-columns-settings-menu'>
                                         <Input
                                             size='small'
-                                            placeholder='Search'
+                                            placeholder={t('Search')}
                                             prefix={<SearchOutlined />}
                                             onChange={(event) => setColumnSearchPhrase(event.target.value)}
                                             value={columnSearchPhrase}

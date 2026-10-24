@@ -15,6 +15,7 @@ import { MoreOutlined } from '@ant-design/icons';
 import { makeBulkOperationAsync } from 'actions/bulk-actions';
 import { updateOrganizationMemberAsync } from 'actions/organization-actions';
 import { useContextMenuClick } from 'utils/hooks';
+import { t } from 'i18n';
 import MemberActionsMenu from './actions-menu';
 import MemberRoleSelector from './member-role-selector';
 
@@ -69,7 +70,7 @@ function MemberItem(props: Readonly<Props>): JSX.Element {
             async (m) => {
                 await dispatch(updateOrganizationMemberAsync(organizationInstance, m, newRole));
             },
-            (m, idx, total) => `Updating role for ${m.user.username} (${idx + 1}/${total})`,
+            (m, idx, total) => t('Updating role for {{username}} ({{value}}/{{total}})', { username: m.user.username, value: idx + 1, total }),
             fetchMembers,
         ));
     };
@@ -92,11 +93,11 @@ function MemberItem(props: Readonly<Props>): JSX.Element {
             <Col span={8} className='cvat-organization-member-item-dates'>
                 {invitation ? (
                     <Text type='secondary'>
-                        {`Invited ${dayjs(invitation.createdDate).fromNow()}`}
-                        {invitation.owner && ` by ${invitation.owner.username}`}
+                        {t('Invited {{fromNow}}', { fromNow: dayjs(invitation.createdDate).fromNow() })}
+                        {invitation.owner && t(' by {{username}}', { username: invitation.owner.username })}
                     </Text>
                 ) : null}
-                {joinedDate ? <Text type='secondary'>{`Joined ${dayjs(joinedDate).fromNow()}`}</Text> : <Text type='secondary'>Invitation pending</Text>}
+                {joinedDate ? <Text type='secondary'>{t('Joined {{fromNow}}', { fromNow: dayjs(joinedDate).fromNow() })}</Text> : <Text type='secondary'>{t('Invitation pending')}</Text>}
             </Col>
             <Col span={3} className='cvat-organization-member-item-role'>
                 <MemberRoleSelector

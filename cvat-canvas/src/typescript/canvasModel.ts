@@ -225,6 +225,7 @@ export enum UpdateReasons {
     SHAPE_ACTIVATED = 'shape_activated',
     SHAPE_FOCUSED = 'shape_focused',
     SHAPE_HIGHLIGHTED = 'shape_highlighted',
+    OBJECTS_SELECTED = 'objects_selected',
 
     FITTED_CANVAS = 'fitted_canvas',
 
@@ -275,6 +276,7 @@ export interface CanvasModel {
     readonly focusData: FocusData;
     readonly activeElement: ActiveElement;
     readonly highlightedElements: HighlightedElements;
+    readonly selectedObjects: number[];
     readonly drawData: DrawData;
     readonly editData: MasksEditData | PolyEditData;
     readonly interactionData: InteractionData;
@@ -296,6 +298,7 @@ export interface CanvasModel {
     setupIssueRegions(issueRegions: Record<number, { hidden: boolean; points: number[] }>): void;
     activate(clientID: number | null, attributeID: number | null): void;
     highlight(clientIDs: number[], severity: HighlightSeverity): void;
+    selectObjects(clientIDs: number[]): void;
     rotate(rotationAngle: number): void;
     focus(clientID: number, padding: number): void;
     fit(): void;
@@ -377,6 +380,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
     private data: {
         activeElement: ActiveElement;
         highlightedElements: HighlightedElements;
+        selectedObjects: number[];
         angle: number;
         canvasSize: Size;
         configuration: Configuration;
@@ -420,6 +424,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
                 elementsIDs: [],
                 severity: null,
             },
+            selectedObjects: [],
             angle: 0,
             canvasSize: {
                 height: 0,
@@ -714,6 +719,23 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         };
 
         this.notify(UpdateReasons.SHAPE_HIGHLIGHTED);
+    }
+
+    public selectObjects(clientIDs: number[]): void {
+        const existing = clientIDs.filter((id: number): boolean => (
+            this.objects.some((_state: any): boolean => _state.clientID === id)
+        ));
+
+        const { selectedObjects } = this.data;
+        const unchanged = existing.length === selectedObjects.length &&
+            existing.every((id: number, idx: number): boolean => selectedObjects[idx] === id);
+
+        if (unchanged) {
+            return;
+        }
+
+        this.data.selectedObjects = existing;
+        this.notify(UpdateReasons.OBJECTS_SELECTED);
     }
 
     public rotate(rotationAngle: number): void {
@@ -1156,6 +1178,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
 
     public get highlightedElements(): HighlightedElements {
         return { ...this.data.highlightedElements };
+    }
+
+    public get selectedObjects(): number[] {
+        return [...this.data.selectedObjects];
     }
 
     public get drawData(): DrawData {

@@ -8,6 +8,7 @@ import { Row, Col } from 'antd/lib/grid';
 
 import Empty from 'antd/lib/empty';
 import { WebhooksQuery } from 'reducers';
+import { t } from 'i18n';
 
 interface Props {
     query: WebhooksQuery;
@@ -21,10 +22,10 @@ function EmptyWebhooksListComponent(props: Props): JSX.Element {
             <Empty description={!query.filter && !query.search ? (
                 <Row justify='center' align='middle'>
                     <Col>
-                        <Text strong>No webhooks created yet ...</Text>
+                        <Text strong>{t('No webhooks created yet ...')}</Text>
                     </Col>
                 </Row>
-            ) : (<Text>No results matched your search</Text>)}
+            ) : (<Text>{t('No results matched your search')}</Text>)}
             />
         </div>
     );

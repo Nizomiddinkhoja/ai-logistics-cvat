@@ -63,6 +63,7 @@ from cvat.apps.engine.models import (
     CloudStorage,
     Data,
     DimensionType,
+    FrameQuality,
     Job,
     Label,
     MediaType,
@@ -8572,6 +8573,237 @@ class TaskJobLimitAPITestCase(ApiTestBase):
         task_id = Task.objects.latest("id").id
         job_count = Job.objects.filter(segment__task_id=task_id).count()
         self.assertEqual(job_count, 0)
+
+
+class TaskDataAppendAPITestCase(ExportApiTestBase, ImportApiTestBase):
+    """
+    Tests for adding new images to an already created task
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        create_db_users(cls)
+
+    @staticmethod
+    def _generate_images(filenames: Sequence[str], *, first_width: int) -> dict[str, BytesIO]:
+        # each image has a unique width to be able to check the frame order
+        return {
+            f"client_files[{i}]": generate_image_file(filename, size=(first_width + i, 50))
+            for i, filename in enumerate(filenames)
+        }
+
+    def _create_task(self, filenames: Sequence[str], *, use_cache: bool = True, **task_params):
+        spec = {"name": "task to add data", "labels": [{"name": "car"}], **task_params}
+        data = {
+            **self._generate_images(filenames, first_width=100),
+            "image_quality": 75,
+            "use_cache": use_cache,
+        }
+
+        with ForceLogin(self.owner, self.client):
+            response = self.client.post("/api/tasks", data=spec, format="json")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            task_id = response.data["id"]
+
+            response = self.client.post(f"/api/tasks/{task_id}/data", data=data)
+            self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+        self._check_request_status(self.owner, response.data["rq_id"])
+        return task_id
+
+    def _append_data(self, task_id: int, filenames: Sequence[str], *, first_width: int):
+        data = self._generate_images(filenames, first_width=first_width)
+
+        with ForceLogin(self.owner, self.client):
+            response = self.client.post(f"/api/tasks/{task_id}/data", data=data)
+            self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED, response.content)
+
+            return self.client.get(f"/api/requests/{response.data['rq_id']}")
+
+    def _get_frame_names(self, task_id: int) -> list[str]:
+        response = self._get_request(f"/api/tasks/{task_id}/data/meta", self.owner)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["size"], len(response.data["frames"]))
+        return [frame["name"] for frame in response.data["frames"]]
+
+    def _get_frame_widths(self, task_id: int, frame_count: int) -> list[int]:
+        widths = []
+        for frame in range(frame_count):
+            response = self._get_request(
+                f"/api/tasks/{task_id}/data?type=frame&quality=original&number={frame}", self.owner
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            widths.append(Image.open(io.BytesIO(response.getvalue())).width)
+
+        return widths
+
+    def _get_segments(self, task_id: int) -> list[tuple[int, int]]:
+        return sorted(
+            Segment.objects.filter(task_id=task_id).values_list("start_frame", "stop_frame")
+        )
+
+    def _test_can_add_images(self, *, use_cache: bool):
+        # the new files go before the existing ones in the lexicographical order
+        task_id = self._create_task(["b_0.jpg", "b_1.jpg", "b_2.jpg"], use_cache=use_cache)
+        self.assertEqual(self._get_segments(task_id), [(0, 2)])
+        job_ids = set(Job.objects.filter(segment__task_id=task_id).values_list("id", flat=True))
+
+        response = self._append_data(
+            task_id, ["a_0.jpg", "a_1.jpg", "a_2.jpg", "a_3.jpg"], first_width=200
+        )
+        self.assertEqual(response.data["status"], RequestStatus.FINISHED, response.data["message"])
+
+        self.assertEqual(
+            self._get_frame_names(task_id),
+            ["b_0.jpg", "b_1.jpg", "b_2.jpg", "a_0.jpg", "a_1.jpg", "a_2.jpg", "a_3.jpg"],
+        )
+        self.assertEqual(self._get_frame_widths(task_id, 7), [100, 101, 102, 200, 201, 202, 203])
+        self.assertEqual(self._get_segments(task_id), [(0, 2), (3, 5), (6, 6)])
+        self.assertLess(
+            job_ids, set(Job.objects.filter(segment__task_id=task_id).values_list("id", flat=True))
+        )
+
+        db_data = Data.objects.get(task__id=task_id)
+        self.assertEqual((db_data.size, db_data.stop_frame), (7, 6))
+        self.assertFalse(db_data.get_append_dirname().exists())
+
+        manifest = ImageManifestManager(db_data.get_manifest_path())
+        manifest.set_index()
+        self.assertEqual(list(manifest.data), self._get_frame_names(task_id))
+
+        # all the chunks of the new jobs must be available
+        for db_job in Job.objects.filter(segment__task_id=task_id).exclude(id__in=job_ids):
+            response = self._get_request(
+                f"/api/jobs/{db_job.id}/data?type=chunk&quality=compressed&index=0", self.owner
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            with zipfile.ZipFile(io.BytesIO(response.getvalue())) as chunk:
+                self.assertEqual(len(chunk.namelist()), db_job.segment.frame_count)
+
+        return task_id
+
+    def test_can_add_images_to_task_with_cache(self):
+        self._test_can_add_images(use_cache=True)
+
+    @override_settings(MEDIA_CACHE_ALLOW_STATIC_CACHE=True)
+    def test_can_add_images_to_task_with_static_chunks(self):
+        task_id = self._test_can_add_images(use_cache=False)
+
+        db_data = Data.objects.get(task__id=task_id)
+        self.assertEqual(db_data.storage_method, StorageMethodChoice.FILE_SYSTEM)
+
+        for db_segment in Segment.objects.filter(task_id=task_id):
+            for quality in FrameQuality:
+                self.assertTrue(
+                    db_data.get_static_segment_chunk_path(0, db_segment.id, quality).is_file()
+                )
+
+    def test_can_add_images_several_times(self):
+        task_id = self._create_task(["0.jpg", "1.jpg", "2.jpg"], segment_size=2)
+        self.assertEqual(self._get_segments(task_id), [(0, 1), (2, 2)])
+
+        for first_width, filenames in ((200, ["3.jpg", "4.jpg", "5.jpg"]), (300, ["6.jpg"])):
+            response = self._append_data(task_id, filenames, first_width=first_width)
+            self.assertEqual(
+                response.data["status"], RequestStatus.FINISHED, response.data["message"]
+            )
+
+        self.assertEqual(self._get_frame_names(task_id), [f"{i}.jpg" for i in range(7)])
+        self.assertEqual(self._get_segments(task_id), [(0, 1), (2, 2), (3, 4), (5, 5), (6, 6)])
+
+    def test_cannot_add_images_with_existing_names(self):
+        task_id = self._create_task(["0.jpg", "1.jpg"])
+        db_data = Data.objects.get(task__id=task_id)
+        manifest_content = db_data.get_manifest_path().read_bytes()
+
+        response = self._append_data(task_id, ["1.jpg", "2.jpg"], first_width=200)
+        self.assertEqual(response.data["status"], RequestStatus.FAILED)
+        self.assertIn("already exist", response.data["message"])
+
+        # the task must stay intact
+        self.assertEqual(self._get_frame_names(task_id), ["0.jpg", "1.jpg"])
+        self.assertEqual(self._get_frame_widths(task_id, 2), [100, 101])
+        self.assertEqual(self._get_segments(task_id), [(0, 1)])
+        self.assertEqual(db_data.get_manifest_path().read_bytes(), manifest_content)
+        self.assertFalse((db_data.get_upload_dirname() / "2.jpg").exists())
+        self.assertFalse(db_data.get_append_dirname().exists())
+
+        response = self._append_data(task_id, ["2.jpg"], first_width=200)
+        self.assertEqual(response.data["status"], RequestStatus.FINISHED, response.data["message"])
+        self.assertEqual(self._get_frame_names(task_id), ["0.jpg", "1.jpg", "2.jpg"])
+
+    def test_cannot_add_images_to_video_task(self):
+        with ForceLogin(self.owner, self.client):
+            response = self.client.post(
+                "/api/tasks", data={"name": "video", "labels": [{"name": "car"}]}, format="json"
+            )
+            task_id = response.data["id"]
+            response = self.client.post(
+                f"/api/tasks/{task_id}/data",
+                data={
+                    "client_files[0]": generate_video_file("video.mp4", width=64, height=64)[1],
+                    "image_quality": 75,
+                },
+            )
+            self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self._check_request_status(self.owner, response.data["rq_id"])
+
+        with ForceLogin(self.owner, self.client):
+            response = self.client.post(
+                f"/api/tasks/{task_id}/data", data=self._generate_images(["0.jpg"], first_width=10)
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cannot_add_server_files(self):
+        task_id = self._create_task(["0.jpg", "1.jpg"])
+
+        with ForceLogin(self.owner, self.client):
+            response = self.client.post(
+                f"/api/tasks/{task_id}/data", data={"server_files[0]": "2.jpg", "image_quality": 75}
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._get_frame_names(task_id), ["0.jpg", "1.jpg"])
+
+    def test_can_restore_backup_of_task_with_added_images(self):
+        task_id = self._test_can_add_images(use_cache=True)
+
+        with ForceLogin(self.owner, self.client):
+            response = self.client.put(
+                f"/api/jobs/{Job.objects.filter(segment__task_id=task_id).latest('id').id}"
+                "/annotations",
+                data={
+                    "version": 0,
+                    "tags": [
+                        {
+                            "frame": 6,
+                            "label_id": Label.objects.get(task_id=task_id).id,
+                            "group": None,
+                            "source": "manual",
+                            "attributes": [],
+                        }
+                    ],
+                    "shapes": [],
+                    "tracks": [],
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+
+        response = self._export_task_backup(self.owner, task_id)
+        backup = io.BytesIO(b"".join(response.streaming_content))
+        backup.name = "backup.zip"
+
+        restored_task_id = self._import_task_backup(self.owner, backup)
+
+        self.assertEqual(self._get_frame_names(restored_task_id), self._get_frame_names(task_id))
+        self.assertEqual(
+            self._get_frame_widths(restored_task_id, 7), [100, 101, 102, 200, 201, 202, 203]
+        )
+        self.assertEqual(self._get_segments(restored_task_id), self._get_segments(task_id))
+
+        response = self._get_request(f"/api/tasks/{restored_task_id}/annotations", self.owner)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([tag["frame"] for tag in response.data["tags"]], [6])
 
 
 class TestCloudStorageS3Status(SimpleTestCase):

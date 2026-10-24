@@ -15,6 +15,7 @@ import CVATLoadingSpinner from 'components/common/loading-spinner';
 import { CombinedState } from 'reducers';
 import MLModel from 'cvat-core/src/ml-model';
 import { getCore, Task } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import DetectorRunner from './detector-runner';
 
 const core = getCore();
@@ -69,7 +70,7 @@ function ModelRunnerDialog(props: StateToProps & DispatchToProps): JSX.Element {
                     setTaskInstance(_task);
                 }
             }).catch((error: any) => {
-                notification.error({ message: 'Could not get task details', description: error.toString() });
+                notification.error({ message: t('Could not get task details'), description: error.toString() });
             });
         }
     }, [visible, task]);
@@ -81,7 +82,7 @@ function ModelRunnerDialog(props: StateToProps & DispatchToProps): JSX.Element {
             footer={[]}
             onCancel={(): void => closeDialog()}
             maskClosable
-            title='Automatic annotation'
+            title={t('Automatic annotation')}
         >
             { taskInstance ? (
                 <DetectorRunner

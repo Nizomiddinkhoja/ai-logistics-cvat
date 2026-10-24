@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { getCloudStorageStatusAsync } from 'actions/cloud-storage-actions';
 import { CombinedState } from 'reducers';
+import { t } from 'i18n';
 import { StorageStatuses } from '../../utils/enums';
 
 interface Props {
@@ -27,16 +28,16 @@ export default function Status({ cloudStorage }: Props): JSX.Element {
 
     let message: JSX.Element;
     if (!status || (status && status.fetching)) {
-        message = <Text type='warning'>Loading ...</Text>;
+        message = <Text type='warning'>{t('Loading ...')}</Text>;
     } else if (status.initialized && !status.status) {
-        message = <Text type='danger'>Error</Text>;
+        message = <Text type='danger'>{t('Error')}</Text>;
     } else {
         message = <Text type={status.status === StorageStatuses.AVAILABLE ? 'success' : 'danger'}>{status.status}</Text>;
     }
 
     return (
         <Paragraph>
-            <Text type='secondary'>Status: </Text>
+            <Text type='secondary'>{t('Status:')} </Text>
             {message}
         </Paragraph>
     );

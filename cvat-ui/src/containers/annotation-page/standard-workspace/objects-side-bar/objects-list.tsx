@@ -6,6 +6,8 @@
 import React from 'react';
 
 import { connect } from 'react-redux';
+import Modal from 'antd/lib/modal';
+import message from 'antd/lib/message';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 
 import ObjectsListComponent from 'components/annotation-page/standard-workspace/objects-side-bar/objects-list';
@@ -18,6 +20,13 @@ import {
     switchPropagateVisibility as switchPropagateVisibilityAction,
     switchSimplifyVisibility as switchSimplifyVisibilityAction,
     removeObject as removeObjectAction,
+    removeObjectsAsync,
+    clearObjectsSelection as clearObjectsSelectionAction,
+    copySelectedObjectsToClipboard,
+    pasteObjectsFromClipboardAsync,
+    clearObjectsClipboard as clearObjectsClipboardAction,
+    CopyToClipboardResult,
+    PasteFromClipboardResult,
     fetchAnnotationsAsync,
     changeHideActiveObjectAsync,
     updateLayerAsync,
@@ -34,7 +43,9 @@ import {
     CombinedState, StatesOrdering, ColorBy, Workspace,
     ActiveControl,
 } from 'reducers';
-import { ObjectState, ObjectType, ShapeType } from 'cvat-core-wrapper';
+import {
+    Label, LabelType, ObjectState, ObjectType, ShapeType,
+} from 'cvat-core-wrapper';
 import { RenderData } from 'cvat-canvas-wrapper';
 import { filterAnnotations } from 'utils/filter-annotations';
 import { registerComponentShortcuts } from 'actions/shortcuts-actions';
@@ -47,6 +58,7 @@ import {
 } from 'components/annotation-page/standard-workspace/objects-side-bar/drag-and-drop';
 import { openAnnotationsActionModal } from 'components/annotation-page/annotations-actions/annotations-actions-modal';
 import { OBJECTS_SIDEBAR_OPEN_Z_LAYER_EVENT } from 'utils/objects-sidebar';
+import { t } from 'i18n';
 
 interface StateToProps {
     jobInstance: any;
@@ -62,6 +74,8 @@ interface StateToProps {
     colorBy: ColorBy;
     activatedStateID: number | null;
     activatedElementID: number | null;
+    selectedStateIDs: number[];
+    clipboardObjectsCount: number;
     minZLayer: number;
     maxZLayer: number;
     currentZLayer: number;
@@ -79,6 +93,11 @@ interface DispatchToProps {
     updateAnnotations(...args: Parameters<typeof updateAnnotationsAsync>): void;
     collapseStates(...args: Parameters<typeof collapseObjectItems>): void;
     removeObject(...args: Parameters<typeof removeObjectAction>): void;
+    removeObjects(...args: Parameters<typeof removeObjectsAsync>): Promise<number>;
+    clearSelection(): void;
+    copySelectedObjects(): CopyToClipboardResult;
+    pasteObjectsFromClipboard(): Promise<PasteFromClipboardResult>;
+    clearClipboard(): void;
     copyShape(...args: Parameters<typeof copyShapeAction>): void;
     switchPropagateVisibility(...args: Parameters<typeof switchPropagateVisibilityAction>): void;
     switchSimplifyVisibility(...args: Parameters<typeof switchSimplifyVisibilityAction>): void;
@@ -94,122 +113,122 @@ interface DispatchToProps {
 
 const componentShortcuts = {
     SWITCH_ALL_LOCK: {
-        name: 'Lock/unlock all objects',
-        description: 'Change locked state for all objects in the side bar',
+        name: t('Lock/unlock all objects'),
+        description: t('Change locked state for all objects in the side bar'),
         sequences: ['t l'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_LOCK: {
-        name: 'Lock/unlock an object',
-        description: 'Change locked state for an active object',
+        name: t('Lock/unlock an object'),
+        description: t('Change locked state for an active object'),
         sequences: ['l'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_ALL_HIDDEN: {
-        name: 'Hide/show all objects',
-        description: 'Change hidden state for objects in the side bar',
+        name: t('Hide/show all objects'),
+        description: t('Change hidden state for objects in the side bar'),
         sequences: ['t h'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_HIDDEN: {
-        name: 'Hide/show an object',
-        description: 'Change hidden state for an active object',
+        name: t('Hide/show an object'),
+        description: t('Change hidden state for an active object'),
         sequences: ['h'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_OCCLUDED: {
-        name: 'Switch occluded',
-        description: 'Change occluded property for an active object',
+        name: t('Switch occluded'),
+        description: t('Change occluded property for an active object'),
         sequences: ['q', '/'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_PINNED: {
-        name: 'Switch pinned property',
-        description: 'Change pinned property for an active object',
+        name: t('Switch pinned property'),
+        description: t('Change pinned property for an active object'),
         sequences: ['p'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_KEYFRAME: {
-        name: 'Switch keyframe',
-        description: 'Change keyframe property for an active track',
+        name: t('Switch keyframe'),
+        description: t('Change keyframe property for an active track'),
         sequences: ['k'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SWITCH_OUTSIDE: {
-        name: 'Switch outside',
-        description: 'Change outside property for an active track',
+        name: t('Switch outside'),
+        description: t('Change outside property for an active track'),
         sequences: ['o'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     DELETE_OBJECT_STANDARD_WORKSPACE: {
-        name: 'Delete object',
-        description: 'Delete an active object. Use shift to force delete of locked objects',
+        name: t('Delete object'),
+        description: t('Delete an active object. Use shift to force delete of locked objects'),
         sequences: ['del', 'shift+del'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     TO_BACKGROUND: {
-        name: 'Move to background',
-        description: 'Move an active object to the newly created background layer (decrease z-order value)',
+        name: t('Move to background'),
+        description: t('Move an active object to the newly created background layer (decrease z-order value)'),
         sequences: ['-', '_'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     TO_FOREGROUND: {
-        name: 'Move to foreground',
-        description: 'Move an active object to the newly created foreground layer (increase z-order value)',
+        name: t('Move to foreground'),
+        description: t('Move an active object to the newly created foreground layer (increase z-order value)'),
         sequences: ['+', '='],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     TO_ONE_LAYER_BACKWARD: {
-        name: 'Move one layer backward',
-        description: 'Move an active object one layer backward (decrease z-order value)',
+        name: t('Move one layer backward'),
+        description: t('Move an active object one layer backward (decrease z-order value)'),
         sequences: [],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     TO_ONE_LAYER_FORWARD: {
-        name: 'Move one layer forward',
-        description: 'Move an active object one layer forward (increase z-order value)',
+        name: t('Move one layer forward'),
+        description: t('Move an active object one layer forward (increase z-order value)'),
         sequences: [],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     COPY_SHAPE: {
-        name: 'Copy shape',
-        description: 'Copy shape to CVAT internal clipboard',
+        name: t('Copy shape'),
+        description: t('Copy shape to CVAT internal clipboard'),
         sequences: ['ctrl+c'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     RUN_ANNOTATIONS_ACTION: {
-        name: 'Run annotations action',
-        description: 'Opens a dialog with annotations actions',
+        name: t('Run annotations action'),
+        description: t('Opens a dialog with annotations actions'),
         sequences: ['ctrl+e'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     PROPAGATE_OBJECT: {
-        name: 'Propagate object',
-        description: 'Make a copy of the object on the following frames',
+        name: t('Propagate object'),
+        description: t('Make a copy of the object on the following frames'),
         sequences: ['ctrl+b'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     NEXT_KEY_FRAME: {
-        name: 'Next keyframe',
-        description: 'Go to the next keyframe of an active track',
-        sequences: ['r'],
+        name: t('Next keyframe'),
+        description: t('Go to the next keyframe of an active track'),
+        sequences: ['shift+r'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     PREV_KEY_FRAME: {
-        name: 'Previous keyframe',
-        description: 'Go to the previous keyframe of an active track',
+        name: t('Previous keyframe'),
+        description: t('Go to the previous keyframe of an active track'),
         sequences: ['e'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     CHANGE_OBJECT_COLOR: {
-        name: 'Change color',
-        description: 'Set the next color for an activated shape',
+        name: t('Change color'),
+        description: t('Set the next color for an activated shape'),
         sequences: ['enter'],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
     SIMPLIFY_POLYGON: {
-        name: 'Simplify polygon',
-        description: 'Activate simplification mode for the selected polygon or polyline',
+        name: t('Simplify polygon'),
+        description: t('Activate simplification mode for the selected polygon or polyline'),
         sequences: [],
         scope: ShortcutScope.OBJECTS_SIDEBAR,
     },
@@ -228,6 +247,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 collapsedAll,
                 activatedStateID,
                 activatedElementID,
+                selectedStateIDs,
+                objectsClipboard,
                 zLayer: {
                     min: minZLayer, max: maxZLayer, cur: currentZLayer,
                 },
@@ -282,6 +303,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
         colorBy,
         activatedStateID,
         activatedElementID,
+        selectedStateIDs,
+        clipboardObjectsCount: objectsClipboard.objects.length,
         minZLayer,
         maxZLayer,
         currentZLayer,
@@ -306,6 +329,21 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         removeObject(...args: Parameters<typeof removeObjectAction>): void {
             dispatch(removeObjectAction(...args));
+        },
+        removeObjects(...args: Parameters<typeof removeObjectsAsync>): Promise<number> {
+            return dispatch(removeObjectsAsync(...args));
+        },
+        clearSelection(): void {
+            dispatch(clearObjectsSelectionAction());
+        },
+        copySelectedObjects(): CopyToClipboardResult {
+            return dispatch(copySelectedObjectsToClipboard());
+        },
+        pasteObjectsFromClipboard(): Promise<PasteFromClipboardResult> {
+            return dispatch(pasteObjectsFromClipboardAsync());
+        },
+        clearClipboard(): void {
+            dispatch(clearObjectsClipboardAction());
         },
         copyShape(...args: Parameters<typeof copyShapeAction>): void {
             dispatch(copyShapeAction(...args));
@@ -513,6 +551,167 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
         compactLayers(frameNumber);
     };
 
+    // Objects of the current multi selection, in the order they are displayed
+    private selectedStates(): ObjectState[] {
+        const { selectedStateIDs } = this.props;
+        const { filteredStates, sortedStatesID } = this.state;
+
+        return sortedStatesID
+            .filter((clientID: number): boolean => selectedStateIDs.includes(clientID))
+            .map((clientID: number): ObjectState | undefined => filteredStates
+                .find((state: ObjectState): boolean => state.clientID === clientID))
+            .filter((state: ObjectState | undefined): state is ObjectState => !!state);
+    }
+
+    private lockSelectedStates = (): void => {
+        const { updateAnnotations } = this.props;
+        const states = this.selectedStates();
+
+        if (!states.length) {
+            return;
+        }
+
+        const locked = states.every((state: ObjectState): boolean => state.lock);
+        states.forEach((state: ObjectState): void => {
+            state.lock = !locked;
+        });
+
+        updateAnnotations(states);
+    };
+
+    private hideSelectedStates = (): void => {
+        const { updateAnnotations } = this.props;
+        const states = this.selectedStates();
+
+        if (!states.length) {
+            return;
+        }
+
+        const hidden = states.every((state: ObjectState): boolean => state.hidden);
+        states.forEach((state: ObjectState): void => {
+            state.hidden = !hidden;
+        });
+
+        updateAnnotations(states);
+    };
+
+    private switchOccludedSelectedStates = (): void => {
+        const { updateAnnotations } = this.props;
+        const states = this.selectedStates().filter(isLayerState);
+
+        if (!states.length) {
+            return;
+        }
+
+        const occluded = states.every((state: ObjectState): boolean => state.occluded);
+        states.forEach((state: ObjectState): void => {
+            state.occluded = !occluded;
+        });
+
+        updateAnnotations(states);
+    };
+
+    private removeSelectedStates = (force = false): void => {
+        const { removeObjects, clearSelection } = this.props;
+        const states = this.selectedStates();
+
+        if (!states.length) {
+            return;
+        }
+
+        const removable = force ? states : states.filter((state: ObjectState): boolean => !state.lock);
+        const lockedCount = states.length - removable.length;
+
+        if (!removable.length) {
+            Modal.info({
+                title: t('Objects are locked'),
+                content: t('Every selected object is locked. Unlock them or use shift+delete to remove anyway.'),
+                className: 'cvat-modal-confirm-remove-object',
+            });
+
+            return;
+        }
+
+        const hasTracks = removable.some((state: ObjectState): boolean => state.objectType === ObjectType.TRACK);
+        const notes = [
+            ...(lockedCount ? [t('{{lockedCount}} locked object(s) will be kept.', { lockedCount })] : []),
+            ...(hasTracks ? [t('The selection contains tracks, they will be removed on every frame.')] : []),
+        ];
+
+        Modal.confirm({
+            title: t('Remove {{length}} object(s)', { length: removable.length }),
+            content: t('Are you sure you want to remove them? {{notes}}', { notes: notes.join(' ') }).trim(),
+            okType: 'danger',
+            okText: t('Yes'),
+            className: 'cvat-modal-confirm-remove-object',
+            onOk: () => removeObjects(removable, force).then((): void => {
+                clearSelection();
+            }),
+        });
+    };
+
+    // Sets one label for the whole multi selection, e.g. to fix classes after automatic annotation
+    private changeSelectedStatesLabel = (label: Label): void => {
+        const { updateAnnotations } = this.props;
+        const selected = this.selectedStates();
+        const changeable = selected.filter((state: ObjectState): boolean => (
+            !state.lock &&
+            state.shapeType !== ShapeType.SKELETON &&
+            !state.parentID &&
+            [state.shapeType || LabelType.TAG, LabelType.ANY].includes(label.type)
+        ));
+        const states = changeable.filter((state: ObjectState): boolean => state.label.id !== label.id);
+        const skipped = selected.length - changeable.length;
+
+        for (const state of states) {
+            state.label = label;
+        }
+
+        if (states.length) {
+            updateAnnotations(states);
+        }
+
+        if (skipped) {
+            message.warning(
+                t('{{skipped}} object(s) kept their label: they are locked, skeletons, ', { skipped }) +
+                t('or the label "{{name}}" can not be used for their shape type', { name: label.name }),
+            );
+        } else if (states.length) {
+            message.success(t('Label "{{name}}" set for {{length}} object(s)', { name: label.name, length: states.length }));
+        }
+    };
+
+    private onRemoveSelectedStates = (): void => {
+        this.removeSelectedStates();
+    };
+
+    private copySelectedStates = (): void => {
+        const { copySelectedObjects } = this.props;
+        const { copied, skipped, overflow } = copySelectedObjects();
+
+        if (overflow) {
+            message.error(t('The selected objects do not fit into the clipboard, try copying fewer of them'));
+        } else if (copied) {
+            const note = skipped ? t(', {{skipped}} tag(s) skipped', { skipped }) : '';
+            message.success(t('{{copied}} object(s) copied{{note}}. Open any frame and press Ctrl+V to paste', { copied, note }));
+        } else {
+            message.info(t('There is nothing to copy, tags can not be pasted on another frame'));
+        }
+    };
+
+    private pasteFromClipboard = (): void => {
+        const { pasteObjectsFromClipboard } = this.props;
+
+        pasteObjectsFromClipboard().then(({ pasted, skipped }): void => {
+            if (pasted) {
+                const note = skipped ? t(', {{skipped}} skipped (no such label in the task)', { skipped }) : '';
+                message.success(`${pasted} object(s) pasted${note}`);
+            } else if (skipped) {
+                message.warning(t('None of the copied objects has a matching label in this task'));
+            }
+        });
+    };
+
     private lockAllStates(locked: boolean): void {
         const { updateAnnotations } = this.props;
         const { filteredStates } = this.state;
@@ -552,6 +751,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             statesLocked,
             activatedStateID,
             activatedElementID,
+            selectedStateIDs,
             maxZLayer,
             minZLayer,
             currentZLayer,
@@ -571,6 +771,10 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             changeFrame,
             workspace,
             renderData,
+            jobInstance,
+            clearSelection,
+            clearClipboard,
+            clipboardObjectsCount,
         } = this.props;
         const {
             objectStates, sortedStatesID, statesOrdering, filteredStates,
@@ -606,6 +810,13 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             SWITCH_LOCK: (event?: KeyboardEvent) => {
                 preventDefault(event);
+
+                // a multi selection wins over the hovered object, it is an explicit user choice
+                if (selectedStateIDs.length) {
+                    this.lockSelectedStates();
+                    return;
+                }
+
                 const state = activatedState();
                 if (state) {
                     state.lock = !state.lock;
@@ -618,6 +829,12 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             SWITCH_HIDDEN: (event?: KeyboardEvent) => {
                 preventDefault(event);
+
+                if (selectedStateIDs.length) {
+                    this.hideSelectedStates();
+                    return;
+                }
+
                 const state = activatedState();
                 const {
                     editedState, changeHideEditedState, activeControl, activeObjectHidden,
@@ -633,6 +850,12 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             SWITCH_OCCLUDED: (event?: KeyboardEvent) => {
                 preventDefault(event);
+
+                if (selectedStateIDs.length) {
+                    this.switchOccludedSelectedStates();
+                    return;
+                }
+
                 const state = activatedState();
                 if (state && isLayerState(state)) {
                     state.occluded = !state.occluded;
@@ -668,6 +891,12 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
             },
             DELETE_OBJECT_STANDARD_WORKSPACE: (event?: KeyboardEvent) => {
                 preventDefault(event);
+
+                if (selectedStateIDs.length) {
+                    this.removeSelectedStates(event ? event.shiftKey : false);
+                    return;
+                }
+
                 const state = activatedState(true);
                 if (state) {
                     removeObject(state, event ? event.shiftKey : false);
@@ -723,8 +952,17 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                 }
             },
             COPY_SHAPE: () => {
+                // a multi selection is copied into the persistent clipboard,
+                // it can be pasted on another frame, in another job or in another task
+                if (selectedStateIDs.length) {
+                    this.copySelectedStates();
+                    return;
+                }
+
                 const state = activatedState(true);
                 if (state) {
+                    // dropping the clipboard keeps ctrl+v placing this single shape with the cursor
+                    clearClipboard();
                     copyShape(state);
                 }
             },
@@ -786,6 +1024,7 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                     sortedStatesID={sortedStatesID}
                     showGroundTruth={showGroundTruth}
                     objectStates={filteredStates}
+                    selectedStateIDs={selectedStateIDs}
                     visibleSkeletonElements={renderData.visibleSkeletonElements}
                     switchHiddenAllShortcut={normalizedKeyMap.SWITCH_ALL_HIDDEN}
                     switchLockAllShortcut={normalizedKeyMap.SWITCH_ALL_LOCK}
@@ -802,6 +1041,17 @@ class ObjectsListContainer extends React.PureComponent<Props, State> {
                     hideAllStates={this.onHideAllStates}
                     showAllStates={this.onShowAllStates}
                     changeShowGroundTruth={this.changeShowGroundTruth}
+                    clearSelection={clearSelection}
+                    clipboardObjectsCount={clipboardObjectsCount}
+                    copySelectedStates={this.copySelectedStates}
+                    pasteFromClipboard={this.pasteFromClipboard}
+                    clearClipboard={clearClipboard}
+                    lockSelectedStates={this.lockSelectedStates}
+                    hideSelectedStates={this.hideSelectedStates}
+                    removeSelectedStates={this.onRemoveSelectedStates}
+                    selectionLabels={jobInstance.labels
+                        .filter((label: Label): boolean => label.type !== LabelType.SKELETON)}
+                    changeSelectedStatesLabel={this.changeSelectedStatesLabel}
                 />
             </>
         );

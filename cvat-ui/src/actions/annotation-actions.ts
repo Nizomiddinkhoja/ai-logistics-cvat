@@ -13,11 +13,16 @@ import {
 import {
     getCore, MLModel, JobType, Job, QualityConflict,
     ObjectState, ObjectType, ShapeType, JobState, JobValidationLayout,
-    DimensionType, Source, AudioIntervalState,
+    DimensionType, Source, AudioIntervalState, Label, Attribute,
 } from 'cvat-core-wrapper';
 import logger, { EventScope } from 'cvat-logger';
 import { getCVATStore } from 'cvat-store';
 import changeObjectOrientation from 'utils/change-object-orientation';
+import { filterAnnotations } from 'utils/filter-annotations';
+import {
+    ClipboardObject, EMPTY_CLIPBOARD, ObjectsClipboard, findLabelByName,
+    readObjectsClipboard, removeObjectsClipboard, serializeObjectsForClipboard, writeObjectsClipboard,
+} from 'utils/objects-clipboard';
 
 import {
     ActiveControl,
@@ -120,6 +125,11 @@ export enum AnnotationActionTypes {
     COLLAPSE_APPEARANCE = 'COLLAPSE_APPEARANCE',
     COLLAPSE_OBJECT_ITEMS = 'COLLAPSE_OBJECT_ITEMS',
     ACTIVATE_OBJECT = 'ACTIVATE_OBJECT',
+    SELECT_OBJECTS = 'SELECT_OBJECTS',
+    SET_OBJECTS_CLIPBOARD = 'SET_OBJECTS_CLIPBOARD',
+    PASTE_OBJECTS_FAILED = 'PASTE_OBJECTS_FAILED',
+    COPY_FROM_PREVIOUS_FRAME_SUCCESS = 'COPY_FROM_PREVIOUS_FRAME_SUCCESS',
+    COPY_FROM_PREVIOUS_FRAME_FAILED = 'COPY_FROM_PREVIOUS_FRAME_FAILED',
     UPDATE_EDITED_STATE = 'UPDATE_EDITED_STATE',
     HIDE_ACTIVE_OBJECT = 'HIDE_ACTIVE_OBJECT',
     REMOVE_OBJECT = 'REMOVE_OBJECT',
@@ -605,6 +615,41 @@ export function removeObjectAsync(objectState: ObjectState, force: boolean): Thu
     };
 }
 
+/**
+ * Removes several objects at once, used by the multi selection.
+ * Resolves with the number of actually removed objects, locked ones are kept unless `force` is set.
+ */
+export function removeObjectsAsync(objectStates: ObjectState[], force: boolean): ThunkAction<Promise<number>> {
+    return async (dispatch: ThunkDispatch): Promise<number> => {
+        try {
+            const { frame, jobInstance } = receiveAnnotationsParameters();
+            let removed = 0;
+
+            for (const objectState of objectStates) {
+                // objects are removed one by one because the core API has no bulk removal
+                // eslint-disable-next-line no-await-in-loop
+                if (await objectState.delete(frame, force)) {
+                    removed += 1;
+                }
+            }
+
+            if (removed) {
+                await jobInstance.logger.log(EventScope.deleteObject, { count: removed });
+            }
+
+            await dispatch(fetchAnnotationsAsync());
+            return removed;
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.REMOVE_OBJECT_FAILED,
+                payload: { error },
+            });
+
+            return 0;
+        }
+    };
+}
+
 export function removeObject(objectState: any, force: boolean): AnyAction {
     return {
         type: AnnotationActionTypes.REMOVE_OBJECT,
@@ -624,6 +669,365 @@ export function copyShape(objectState: any): AnyAction {
         payload: {
             objectState,
         },
+    };
+}
+
+/**
+ * Replaces the current multi selection.
+ * `anchorStateID` is the object the next shift+click range selection is counted from.
+ */
+export function selectObjects(clientIDs: number[], anchorStateID: number | null = null): AnyAction {
+    return {
+        type: AnnotationActionTypes.SELECT_OBJECTS,
+        payload: {
+            clientIDs,
+            anchorStateID,
+        },
+    };
+}
+
+export function clearObjectsSelection(): AnyAction {
+    return selectObjects([], null);
+}
+
+// ctrl+click: adds the object to the selection or removes it from there
+export function toggleObjectSelection(clientID: number): ThunkAction<void> {
+    return (dispatch: ThunkDispatch, getState: () => CombinedState): void => {
+        const { selectedStateIDs } = getState().annotation.annotations;
+        const alreadySelected = selectedStateIDs.includes(clientID);
+        const updated = alreadySelected ?
+            selectedStateIDs.filter((id: number): boolean => id !== clientID) :
+            [...selectedStateIDs, clientID];
+
+        dispatch(selectObjects(updated, alreadySelected ? null : clientID));
+    };
+}
+
+// shift+drag over the canvas: adds every object inside the drawn box to the selection
+export function appendObjectsToSelection(clientIDs: number[]): ThunkAction<void> {
+    return (dispatch: ThunkDispatch, getState: () => CombinedState): void => {
+        const { selectedStateIDs, selectionAnchorStateID } = getState().annotation.annotations;
+        const updated = Array.from(new Set([...selectedStateIDs, ...clientIDs]));
+        const anchor = selectionAnchorStateID ?? (clientIDs.length ? clientIDs[clientIDs.length - 1] : null);
+
+        dispatch(selectObjects(updated, anchor));
+    };
+}
+
+/**
+ * shift+click: selects every object between the anchor and the clicked one.
+ * `orderedClientIDs` defines what "between" means, the objects sidebar passes its
+ * own visible order, other callers fall back to ascending client IDs.
+ */
+export function selectObjectsRange(
+    clientID: number,
+    orderedClientIDs: number[] | null = null,
+): ThunkAction<void> {
+    return (dispatch: ThunkDispatch, getState: () => CombinedState): void => {
+        const state = getState();
+        const {
+            annotations: { selectedStateIDs, selectionAnchorStateID, states },
+            player: { frame: { number: frameNumber } },
+            workspace,
+        } = state.annotation;
+
+        const ordering = orderedClientIDs?.length ?
+            orderedClientIDs :
+            filterAnnotations(states, { frame: frameNumber, workspace })
+                .map((objectState: ObjectState): number => objectState.clientID as number)
+                .sort((left: number, right: number): number => left - right);
+
+        const target = ordering.indexOf(clientID);
+        if (target === -1) {
+            return;
+        }
+
+        const anchor = selectionAnchorStateID ?? (
+            selectedStateIDs.length ? selectedStateIDs[selectedStateIDs.length - 1] : null
+        );
+        const origin = anchor === null ? -1 : ordering.indexOf(anchor);
+
+        if (origin === -1) {
+            dispatch(selectObjects([clientID], clientID));
+            return;
+        }
+
+        const [from, to] = origin <= target ? [origin, target] : [target, origin];
+        dispatch(selectObjects(ordering.slice(from, to + 1), anchor));
+    };
+}
+
+/**
+ * Copies every shape drawn on the previous frame onto the current one.
+ * Tracks are skipped because they are already interpolated across frames.
+ * Resolves with the number of copied objects.
+ */
+export function copyObjectsFromPreviousFrameAsync(): ThunkAction<Promise<number>> {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<number> => {
+        const state = getState();
+        const {
+            job: { instance: jobInstance, frameNumbers },
+            player: { frame: { number: frameNumber } },
+            annotations: { filters },
+        } = state.annotation;
+
+        try {
+            if (!jobInstance) {
+                throw new Error('Job is not opened, copying is not possible');
+            }
+
+            const frameIndex = frameNumbers.indexOf(frameNumber);
+            if (frameIndex <= 0) {
+                return 0;
+            }
+
+            const previousFrame = frameNumbers[frameIndex - 1];
+            const previousStates = await jobInstance.annotations.get(previousFrame, false, filters);
+            const shapes = previousStates.filter((objectState: ObjectState): boolean => (
+                objectState.objectType === ObjectType.SHAPE && !objectState.isGroundTruth
+            ));
+
+            if (!shapes.length) {
+                return 0;
+            }
+
+            const copies = cvat.utils.propagateShapes<ObjectState>(
+                shapes, previousFrame, frameNumber, frameNumbers,
+            );
+
+            if (!copies.length) {
+                return 0;
+            }
+
+            await jobInstance.logger.log(EventScope.copyObject, { count: copies.length });
+            const clientIDs = await dispatch(createAnnotationsAsync(copies));
+
+            // the copies are selected right away, so that they can be moved or dropped in one go
+            if (clientIDs.length) {
+                dispatch(selectObjects(clientIDs, clientIDs[clientIDs.length - 1]));
+            }
+
+            dispatch({
+                type: AnnotationActionTypes.COPY_FROM_PREVIOUS_FRAME_SUCCESS,
+                payload: { count: clientIDs.length },
+            });
+
+            return clientIDs.length;
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.COPY_FROM_PREVIOUS_FRAME_FAILED,
+                payload: { error },
+            });
+
+            return 0;
+        }
+    };
+}
+
+export function setObjectsClipboard(clipboard: ObjectsClipboard): AnyAction {
+    return {
+        type: AnnotationActionTypes.SET_OBJECTS_CLIPBOARD,
+        payload: { clipboard },
+    };
+}
+
+// the clipboard is kept in the browser storage, a newly opened job picks it up from there
+export function restoreObjectsClipboard(): AnyAction {
+    return setObjectsClipboard(readObjectsClipboard());
+}
+
+export function clearObjectsClipboard(): AnyAction {
+    removeObjectsClipboard();
+    return setObjectsClipboard(EMPTY_CLIPBOARD);
+}
+
+export interface CopyToClipboardResult {
+    copied: number;
+    skipped: number;
+    overflow: boolean;
+}
+
+/**
+ * Puts the current multi selection into the clipboard, so that it can be pasted
+ * on another frame, in another job or in another task.
+ * Tags are skipped, they carry no geometry to paste.
+ */
+export function copySelectedObjectsToClipboard(): ThunkAction<CopyToClipboardResult> {
+    return (dispatch: ThunkDispatch, getState: () => CombinedState): CopyToClipboardResult => {
+        const state = getState();
+        const {
+            job: { instance: jobInstance },
+            annotations: { selectedStateIDs, states },
+        } = state.annotation;
+
+        const selected = states.filter((objectState: ObjectState): boolean => (
+            selectedStateIDs.includes(objectState.clientID as number)
+        ));
+        const copyable = selected.filter((objectState: ObjectState): boolean => (
+            objectState.objectType !== ObjectType.TAG
+        ));
+
+        if (!copyable.length) {
+            return { copied: 0, skipped: selected.length, overflow: false };
+        }
+
+        const clipboard = writeObjectsClipboard(
+            serializeObjectsForClipboard(copyable),
+            jobInstance?.id ?? null,
+        );
+
+        if (!clipboard) {
+            return { copied: 0, skipped: selected.length, overflow: true };
+        }
+
+        jobInstance?.logger.log(EventScope.copyObject, { count: copyable.length });
+        dispatch(setObjectsClipboard(clipboard));
+
+        return {
+            copied: copyable.length,
+            skipped: selected.length - copyable.length,
+            overflow: false,
+        };
+    };
+}
+
+function attributesFromClipboard(source: Record<string, string>, label: Label): Record<number, string> {
+    const attributes: Record<number, string> = {};
+
+    label.attributes.forEach((attribute: Attribute): void => {
+        const value = source[attribute.name];
+        // an attribute with the same name may have different values in another task
+        if (typeof value === 'string' && cvat.utils.validateAttributeValue(value, attribute)) {
+            attributes[attribute.id as number] = value;
+        }
+    });
+
+    return attributes;
+}
+
+/** Builds an object state for the current frame, or null when the clipboard object does not fit the task */
+function buildStateFromClipboardObject(
+    clipboardObject: ClipboardObject,
+    labels: Label[],
+    frame: number,
+    frameData: { width?: number; height?: number } | null,
+): ObjectState | null {
+    const label = findLabelByName(labels, clipboardObject.labelName);
+    if (!label) {
+        return null;
+    }
+
+    if (clipboardObject.shapeType === ShapeType.MASK && clipboardObject.points.length >= 4) {
+        const [left, top, right, bottom] = clipboardObject.points.slice(-4);
+        const { width, height } = frameData || {};
+
+        // a mask lying completely outside the target image would be cropped to nothing
+        if (typeof width === 'number' && typeof height === 'number' &&
+            (left >= width || top >= height || right < 0 || bottom < 0)) {
+            return null;
+        }
+    }
+
+    const elements = [];
+    if (clipboardObject.shapeType === ShapeType.SKELETON) {
+        const sublabels = label.structure?.sublabels || [];
+
+        for (const element of clipboardObject.elements) {
+            const elementLabel = findLabelByName(sublabels, element.labelName);
+            // a skeleton missing one of its points can not be recreated
+            if (!elementLabel) {
+                return null;
+            }
+
+            elements.push({
+                objectType: ObjectType.SHAPE,
+                shapeType: ShapeType.POINTS,
+                label: elementLabel,
+                points: [...element.points],
+                occluded: element.occluded,
+                outside: element.outside,
+                attributes: attributesFromClipboard(element.attributes, elementLabel),
+                frame,
+                source: Source.MANUAL,
+            });
+        }
+    }
+
+    return new cvat.classes.ObjectState({
+        objectType: ObjectType.SHAPE,
+        shapeType: clipboardObject.shapeType as ShapeType,
+        label,
+        points: [...clipboardObject.points],
+        rotation: clipboardObject.rotation,
+        occluded: clipboardObject.occluded,
+        zOrder: clipboardObject.zOrder,
+        attributes: attributesFromClipboard(clipboardObject.attributes, label),
+        frame,
+        source: Source.MANUAL,
+        ...(elements.length ? { elements } : {}),
+    });
+}
+
+export interface PasteFromClipboardResult {
+    pasted: number;
+    skipped: number;
+}
+
+/**
+ * Recreates the clipboard content on the current frame. Labels and attributes are matched
+ * by name, so objects copied in one task can be pasted in another one. Objects whose label
+ * is missing in the current task are skipped.
+ */
+export function pasteObjectsFromClipboardAsync(): ThunkAction<Promise<PasteFromClipboardResult>> {
+    return async (dispatch: ThunkDispatch, getState: () => CombinedState): Promise<PasteFromClipboardResult> => {
+        const state = getState();
+        const {
+            job: { instance: jobInstance, labels },
+            player: { frame: { number: frameNumber, data: frameData } },
+            annotations: { objectsClipboard },
+        } = state.annotation;
+
+        try {
+            if (!jobInstance || !objectsClipboard.objects.length) {
+                return { pasted: 0, skipped: 0 };
+            }
+
+            const statesToCreate: ObjectState[] = [];
+            let skipped = 0;
+
+            for (const clipboardObject of objectsClipboard.objects) {
+                const objectState = buildStateFromClipboardObject(
+                    clipboardObject, labels, frameNumber, frameData,
+                );
+
+                if (objectState) {
+                    statesToCreate.push(objectState);
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            if (!statesToCreate.length) {
+                return { pasted: 0, skipped };
+            }
+
+            const clientIDs = await dispatch(createAnnotationsAsync(statesToCreate));
+            await jobInstance.logger.log(EventScope.pasteObject, { count: clientIDs.length });
+
+            // the pasted objects become the new selection, they are usually adjusted right away
+            if (clientIDs.length) {
+                dispatch(selectObjects(clientIDs, clientIDs[clientIDs.length - 1]));
+            }
+
+            return { pasted: clientIDs.length, skipped };
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.PASTE_OBJECTS_FAILED,
+                payload: { error },
+            });
+
+            return { pasted: 0, skipped: 0 };
+        }
     };
 }
 
@@ -1107,6 +1511,8 @@ export function getJobAsync({
                     filters,
                 },
             });
+
+            dispatch(restoreObjectsClipboard());
 
             if (job.dimension === DimensionType.DIMENSION_1D) {
                 dispatch(loadAudioDataAsync(job, jobMeta));

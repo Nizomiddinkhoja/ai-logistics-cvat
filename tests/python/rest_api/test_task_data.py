@@ -1868,6 +1868,117 @@ class TestPostTaskData:
                 "images/image_0.jpg",
             } <= frame_names
 
+    def _append_task_data(self, api_client, task_id: int, files: list[io.BytesIO]):
+        _, response = api_client.tasks_api.create_data(
+            task_id,
+            data_request=models.DataRequest(image_quality=70),
+            upload_start=True,
+            _content_type="application/json",
+        )
+        assert response.status == HTTPStatus.ACCEPTED
+
+        _, response = api_client.tasks_api.create_data(
+            task_id,
+            data_request=models.DataRequest(client_files=files, image_quality=70),
+            upload_multiple=True,
+            _content_type="multipart/form-data",
+        )
+        assert response.status == HTTPStatus.OK
+
+        result, response = api_client.tasks_api.create_data(
+            task_id,
+            data_request=models.DataRequest(image_quality=70),
+            upload_finish=True,
+            _content_type="application/json",
+        )
+        assert response.status == HTTPStatus.ACCEPTED
+
+        return wait_until_task_is_created(api_client.requests_api, result.rq_id)
+
+    @pytest.mark.parametrize("use_cache", [True, False])
+    def test_can_add_images_to_created_task(self, use_cache: bool):
+        initial_files = generate_image_files(3, prefixes=["a_"] * 3)
+        new_files = generate_image_files(3, prefixes=["b_"] * 3)
+
+        task_id, _ = create_task(
+            self._USERNAME,
+            {
+                "name": "Task with images added after creation",
+                "labels": [{"name": "car"}],
+                "segment_size": 2,
+            },
+            {"client_files": initial_files, "image_quality": 70, "use_cache": use_cache},
+        )
+
+        with make_api_client(self._USERNAME) as api_client:
+            initial_jobs = get_paginated_collection(
+                api_client.jobs_api.list_endpoint, task_id=task_id
+            )
+            initial_segments = sorted((j.start_frame, j.stop_frame) for j in initial_jobs)
+            assert initial_segments == [(0, 1), (2, 2)]
+
+            request_details = self._append_task_data(api_client, task_id, new_files)
+            assert request_details.status.value == "finished", request_details.message
+
+            task, _ = api_client.tasks_api.retrieve(task_id)
+            assert task.size == 6
+
+            data_meta, _ = api_client.tasks_api.retrieve_data_meta(task_id)
+            assert data_meta.size == 6
+            assert [frame.name for frame in data_meta.frames] == [
+                f.name for f in initial_files + new_files
+            ]
+
+            jobs = get_paginated_collection(api_client.jobs_api.list_endpoint, task_id=task_id)
+            assert sorted((j.start_frame, j.stop_frame) for j in jobs) == [
+                *initial_segments,
+                (3, 4),
+                (5, 5),
+            ]
+
+            # the existing jobs must be kept
+            assert {j.id for j in initial_jobs} <= {j.id for j in jobs}
+
+            for frame_idx, expected_file in enumerate(initial_files + new_files):
+                _, response = api_client.tasks_api.retrieve_data(
+                    task_id,
+                    number=frame_idx,
+                    quality="original",
+                    type="frame",
+                    _parse_response=False,
+                )
+                assert response.status == HTTPStatus.OK
+                assert np.array_equal(
+                    np.array(Image.open(io.BytesIO(response.data))),
+                    np.array(Image.open(io.BytesIO(expected_file.getvalue()))),
+                )
+
+    def test_cannot_add_images_with_existing_names_to_created_task(self):
+        files = generate_image_files(3)
+
+        task_id, _ = create_task(
+            self._USERNAME,
+            {"name": "Task with images added after creation", "labels": [{"name": "car"}]},
+            {"client_files": files, "image_quality": 70},
+        )
+
+        with make_api_client(self._USERNAME) as api_client:
+            request_details = self._append_task_data(api_client, task_id, generate_image_files(1))
+            assert request_details.status.value == "failed"
+            assert "already exist" in request_details.message
+
+            task, _ = api_client.tasks_api.retrieve(task_id)
+            assert task.size == 3
+
+            # the task must not be broken by the failed request
+            request_details = self._append_task_data(
+                api_client, task_id, generate_image_files(1, prefixes=["new_"])
+            )
+            assert request_details.status.value == "finished", request_details.message
+
+            task, _ = api_client.tasks_api.retrieve(task_id)
+            assert task.size == 4
+
 
 @pytest.mark.usefixtures("restore_db_per_class")
 @pytest.mark.usefixtures("restore_cvat_data_per_class")

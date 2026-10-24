@@ -42,6 +42,7 @@ import { writeLatestFrame } from 'utils/remember-latest-frame';
 import { finishDraw } from 'utils/drawing';
 import { toClipboard } from 'utils/to-clipboard';
 import { Chapter } from 'cvat-core/src/frames';
+import { t } from 'i18n';
 
 interface StateToProps {
     chapters: Chapter[];
@@ -293,7 +294,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
                 location.pathname !== `/tasks/${taskID}/jobs/${jobID}` &&
                 !forceExit
             ) {
-                return 'You have unsaved changes, please confirm leaving this page.';
+                return t('You have unsaved changes, please confirm leaving this page.');
             }
 
             if (forceExit) {
@@ -684,7 +685,7 @@ class AnnotationTopBarContainer extends React.PureComponent<Props> {
 
         writeLatestFrame(jobInstance.id, frameNumber);
         if (jobInstance.annotations.hasUnsavedChanges() && !forceExit) {
-            const confirmationMessage = 'You have unsaved changes, please confirm leaving this page.';
+            const confirmationMessage = t('You have unsaved changes, please confirm leaving this page.');
 
             // eslint-disable-next-line no-param-reassign
             event.returnValue = confirmationMessage;

@@ -46,7 +46,12 @@ from rq.job import Job as RQJob
 import cvat.apps.dataset_manager as dm
 from cvat.apps.dataset_manager.serializers import DatasetFormatsSerializer
 from cvat.apps.engine import backup
-from cvat.apps.engine.background import BackupImporter, DatasetImporter, TaskCreator
+from cvat.apps.engine.background import (
+    BackupImporter,
+    DatasetImporter,
+    TaskCreator,
+    TaskDataAppender,
+)
 from cvat.apps.engine.cache import (
     CacheTooLargeDataError,
     CvatChunkTimestampMismatchError,
@@ -143,7 +148,7 @@ from cvat.apps.engine.serializers import (
     TaskWriteSerializer,
     UserSerializer,
 )
-from cvat.apps.engine.task import ensure_task_is_initialized
+from cvat.apps.engine.task import ensure_task_is_initialized, validate_task_data_can_be_appended
 from cvat.apps.engine.tus import TusFile
 from cvat.apps.engine.types import ExtendedRequest
 from cvat.apps.engine.utils import parse_exception_message, sendfile
@@ -1295,10 +1300,19 @@ class TaskViewSet(
     def _is_data_uploading(self) -> bool:
         return "data" in self.action
 
+    def _is_data_appending(self) -> bool:
+        # New files for an initialized task are kept apart from the task files
+        # until they are validated and added to the task by a background job
+        return self._is_data_uploading() and self._object.is_initialized
+
     # UploadMixin method
     def get_upload_dir(self):
         if "annotations" in self.action:
             return self._object.get_tmp_dirname()
+        elif self._is_data_appending():
+            append_dir = self._object.data.get_append_dirname()
+            append_dir.mkdir(parents=True, exist_ok=True)
+            return append_dir
         elif self._is_data_uploading():
             return self._object.data.get_upload_dirname()
         elif "backup" in self.action:
@@ -1362,7 +1376,11 @@ class TaskViewSet(
     def init_tus_upload(self, request: ExtendedRequest, *, append_url_name: str) -> Response:
         response = super().init_tus_upload(request, append_url_name=append_url_name)
 
-        if self._is_data_uploading() and response.status_code == status.HTTP_201_CREATED:
+        if (
+            self._is_data_uploading()
+            and not self._is_data_appending()
+            and response.status_code == status.HTTP_201_CREATED
+        ):
             self._maybe_append_upload_info_entry(TusFile.TusMeta.from_request(request).filename)
 
         return response
@@ -1371,10 +1389,18 @@ class TaskViewSet(
     @transaction.atomic
     def append_files(self, request):
         client_files = self._get_request_client_files(request)
-        if self._is_data_uploading() and client_files:
+        if self._is_data_uploading() and not self._is_data_appending() and client_files:
             self._append_upload_info_entries(client_files)
 
         return super().append_files(request)
+
+    # UploadMixin method
+    def upload_started(self, request: ExtendedRequest):
+        if self._is_data_appending():
+            # Drop the files left by the previous unfinished upload, if any
+            shutil.rmtree(self._object.data.get_append_dirname(), ignore_errors=True)
+
+        return super().upload_started(request)
 
     # UploadMixin method
     def upload_finished(self, request: ExtendedRequest):
@@ -1383,7 +1409,26 @@ class TaskViewSet(
             importer = DatasetImporter(request=request, db_instance=self._object)
             return importer.enqueue_job()
 
+        def _handle_append_data(request: ExtendedRequest):
+            serializer = DataSerializer(self._object.data, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            if any(serializer.validated_data.get(k) for k in ("server_files", "remote_files")):
+                raise ValidationError(
+                    "Only files uploaded from a computer can be added to an already created task"
+                )
+
+            # Files can be sent together with the finishing request
+            response = self.append_files(request)
+            if response.status_code != status.HTTP_200_OK:
+                return response
+
+            appender = TaskDataAppender(request=request, db_instance=self._object)
+            return appender.enqueue_job()
+
         def _handle_upload_data(request: ExtendedRequest):
+            if self._is_data_appending():
+                return _handle_append_data(request)
+
             with transaction.atomic():
                 task_data = self._object.data
                 serializer = DataSerializer(task_data, data=request.data)
@@ -1527,6 +1572,12 @@ class TaskViewSet(
             the `GET /api/requests/<rq_id>`, where **rq_id** is request ID returned for this request.
 
             Once data is attached to a task, it cannot be detached or replaced.
+
+            More images can be added to an already created 2D image task that stores
+            its files on the server. To do this, upload new image files ('client_files')
+            using the same requests. The other parameters are ignored in this case.
+            The new images are added to the end of the task, and new jobs are created for them.
+            The existing frames, jobs and annotations are not changed.
         """.format(upload_file_order_field=_UPLOAD_FILE_ORDER_FIELD)),
         # TODO: add a tutorial on this endpoint in the REST API docs
         request=DataSerializer(required=False),
@@ -1632,7 +1683,15 @@ class TaskViewSet(
                 # we just need to lock 1 row with the target Task entity.
                 locked_instance = Task.objects.select_for_update().get(pk=pk)
                 if locked_instance.is_initialized:
-                    raise ValidationError("Adding more data is not supported")
+                    # More images can be added to an already created task
+                    validate_task_data_can_be_appended(locked_instance)
+
+                    appender = TaskDataAppender(request=request, db_instance=locked_instance)
+                    if appender.is_in_progress():
+                        return Response(
+                            data="New data is already being added to the task",
+                            status=status.HTTP_409_CONFLICT,
+                        )
 
                 if not locked_instance.data_id:
                     task_data = Data.objects.create()

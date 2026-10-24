@@ -5,6 +5,7 @@
 import React, { useCallback, useRef } from 'react';
 
 import { Attribute, Label, LabelType } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import ObjectMatcher from './object-mapper';
 
 export type Md2JobAttributesMapping = [AttributeInterface | null, AttributeInterface | null][];
@@ -150,8 +151,8 @@ function LabelsMapperComponent(props: Props): JSX.Element {
             rightData={taskLabels}
             allowManyToOne
             defaultMapping={computeLabelsAutoMapping(modelLabels, taskLabels)}
-            deleteMappingLabel='Remove mapped label'
-            infoMappingLabel='Specify mapping between labels'
+            deleteMappingLabel={t('Remove mapped label')}
+            infoMappingLabel={t('Specify mapping between labels')}
             containerClassName='cvat-runner-label-mapper'
             rowClassName='cvat-runner-label-mapping-row'
             getObjectName={(object: LabelInterface) => object.name}
@@ -194,8 +195,8 @@ function LabelsMapperComponent(props: Props): JSX.Element {
                                 ) as [AttributeInterface, AttributeInterface][]}
                                 rowClassName='cvat-runner-attribute-mapping-row'
                                 containerClassName='cvat-runner-attribute-mapper'
-                                deleteMappingLabel='Remove mapped attribute'
-                                infoMappingLabel='Specify mapping between label attributes'
+                                deleteMappingLabel={t('Remove mapped attribute')}
+                                infoMappingLabel={t('Specify mapping between label attributes')}
                                 getObjectName={(object: AttributeInterface) => object.name}
                                 getObjectColor={() => taskLabel.color}
                                 filterObjects={(
@@ -233,8 +234,8 @@ function LabelsMapperComponent(props: Props): JSX.Element {
                                 )}
                                 rowClassName='cvat-runner-label-mapping-row'
                                 containerClassName='cvat-runner-label-mapper'
-                                deleteMappingLabel='Remove mapped label'
-                                infoMappingLabel='Specify mapping between skeleton sublabels'
+                                deleteMappingLabel={t('Remove mapped label')}
+                                infoMappingLabel={t('Specify mapping between skeleton sublabels')}
                                 getObjectName={(object: LabelInterface) => object.name}
                                 getObjectColor={(object: LabelInterface) => object.color}
                                 filterObjects={(
@@ -261,8 +262,8 @@ function LabelsMapperComponent(props: Props): JSX.Element {
                                                     ) as [AttributeInterface, AttributeInterface][]}
                                                     rowClassName='cvat-runner-attribute-mapping-row'
                                                     containerClassName='cvat-runner-attribute-mapper'
-                                                    deleteMappingLabel='Remove mapped attribute'
-                                                    infoMappingLabel='Specify mapping between sublabel attributes'
+                                                    deleteMappingLabel={t('Remove mapped attribute')}
+                                                    infoMappingLabel={t('Specify mapping between sublabel attributes')}
                                                     getObjectName={(object: AttributeInterface) => object.name}
                                                     getObjectColor={() => taskSublabel.color}
                                                     filterObjects={(

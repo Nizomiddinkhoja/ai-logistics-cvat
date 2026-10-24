@@ -11,6 +11,7 @@ import { TagIcon } from 'icons';
 
 import CVATTooltip from 'components/common/cvat-tooltip';
 import SetupTagPopoverContainer from 'containers/annotation-page/standard-workspace/controls-side-bar/setup-tag-popover';
+import { t } from 'i18n';
 import withVisibilityHandling from './handle-popover-visibility';
 
 export interface Props {
@@ -26,7 +27,7 @@ function SetupTagControl(props: Props): JSX.Element {
         <Icon className='cvat-setup-tag-control cvat-disabled-canvas-control' component={TagIcon} />
     ) : (
         <CustomPopover placement='right' content={<SetupTagPopoverContainer />}>
-            <CVATTooltip title='Create a tag' placement='right'>
+            <CVATTooltip title={t('Create a tag')} placement='right'>
                 <Icon className='cvat-setup-tag-control' component={TagIcon} />
             </CVATTooltip>
         </CustomPopover>

@@ -59,10 +59,12 @@ from utils.dataset_manifest import (
     is_manifest,
 )
 from utils.dataset_manifest.core import (
+    DatasetImagesReader,
     VideoManifestValidator,
     is_dataset_manifest,
     is_video_manifest,
 )
+from utils.dataset_manifest.errors import InvalidImageError
 from utils.dataset_manifest.utils import find_related_images
 
 from .cloud_provider import HeaderFirstMediaDownloader
@@ -226,30 +228,38 @@ def _create_segments_and_jobs(
         )
 
     for segment_idx, segment_params in enumerate(segments):
-        slogger.glob.info(
-            "New segment for task #{task_id}: idx = {segment_idx}, start_frame = {start_frame}, "
-            "stop_frame = {stop_frame}".format(
-                task_id=db_task.id, segment_idx=segment_idx, **segment_params._asdict()
-            )
-        )
-
-        db_segment = models.Segment(task=db_task, **segment_params._asdict())
-        db_segment.save()
-
-        db_job = models.Job(segment=db_segment)
-        db_job.save()
-        db_job.make_dirs()
-
-        # consensus jobs use the same `db_segment` as the regular job, thus data not duplicated in backups, exports
-        for _ in range(db_task.consensus_replicas):
-            consensus_db_job = models.Job(
-                segment=db_segment, parent_job_id=db_job.id, type=models.JobType.CONSENSUS_REPLICA
-            )
-            consensus_db_job.save()
-            consensus_db_job.make_dirs()
+        _create_segment_with_jobs(db_task, segment_params, segment_idx=segment_idx)
 
     db_task.data.save()
     db_task.save()
+
+
+def _create_segment_with_jobs(
+    db_task: models.Task, segment_params: SegmentParams, *, segment_idx: int
+) -> models.Segment:
+    slogger.glob.info(
+        "New segment for task #{task_id}: idx = {segment_idx}, start_frame = {start_frame}, "
+        "stop_frame = {stop_frame}".format(
+            task_id=db_task.id, segment_idx=segment_idx, **segment_params._asdict()
+        )
+    )
+
+    db_segment = models.Segment(task=db_task, **segment_params._asdict())
+    db_segment.save()
+
+    db_job = models.Job(segment=db_segment)
+    db_job.save()
+    db_job.make_dirs()
+
+    # consensus jobs use the same `db_segment` as the regular job, thus data not duplicated in backups, exports
+    for _ in range(db_task.consensus_replicas):
+        consensus_db_job = models.Job(
+            segment=db_segment, parent_job_id=db_job.id, type=models.JobType.CONSENSUS_REPLICA
+        )
+        consensus_db_job.save()
+        consensus_db_job.make_dirs()
+
+    return db_segment
 
 
 def _count_files(data: dict[str, Any]) -> dict[str, list[str]]:
@@ -2081,7 +2091,11 @@ def _create_task_preview(db_task: models.Task):
 
 
 def _create_static_chunks(
-    db_task: models.Task, *, media_extractor: IMediaReader, upload_dir: Path
+    db_task: models.Task,
+    *,
+    media_extractor: IMediaReader,
+    upload_dir: Path,
+    db_segments: Sequence[models.Segment] | None = None,
 ) -> None:
     @attrs.define
     class _ChunkProgressUpdater:
@@ -2171,7 +2185,8 @@ def _create_static_chunks(
         quality=original_quality, dimension=db_task.dimension
     )
 
-    db_segments = db_task.segment_set.order_by("start_frame").all()
+    if db_segments is None:
+        db_segments = db_task.segment_set.order_by("start_frame").all()
 
     frame_map = {}  # frame number -> extractor frame number
 
@@ -2252,3 +2267,248 @@ def _move_to_backing_cs_if_configured(db_data: models.Data) -> None:
         else:
             if db_data.supports_backing_cs(backing_cs):
                 db_data.move_to_backing_cs(backing_cs)
+
+
+def validate_task_data_can_be_appended(db_task: models.Task) -> None:
+    ensure_task_is_initialized(db_task)
+    db_data = db_task.require_data()
+
+    if (db_task.media_type, db_task.mode, db_task.dimension) != (
+        models.MediaType.IMAGE,
+        models.TaskMode.ANNOTATION,
+        models.DimensionType.DIM_2D,
+    ):
+        raise ValidationError("Adding more data is only supported in 2D image tasks")
+
+    if db_data.storage != models.StorageChoice.LOCAL or db_data.local_storage_backing_cs_id:
+        raise ValidationError(
+            "Adding more data is only supported in tasks that store their files on the CVAT server"
+        )
+
+    if db_data.validation_mode == models.ValidationMode.GT_POOL:
+        raise ValidationError("Adding more data is not supported in tasks with honeypots")
+
+    if (
+        db_data.start_frame != 0
+        or db_data.get_frame_step() != 1
+        or db_data.stop_frame != db_data.size - 1
+    ):
+        raise ValidationError(
+            "Adding more data is not supported in tasks "
+            "created with a custom frame range or a frame filter"
+        )
+
+
+@transaction.atomic
+def append_task_data(task_id: int) -> None:
+    """
+    Adds the images uploaded into the append directory of the task data to the end of the task.
+    The existing frames and jobs are not changed, new jobs are created for the new frames.
+    """
+
+    # Only the data is locked here. Locking the task for the whole operation
+    # would block the other requests working with the task, e.g. saving annotations
+    db_task = models.Task.objects.get(pk=task_id)
+    db_data = models.Data.objects.select_for_update().get(pk=db_task.data_id)
+    db_task.data = db_data
+
+    validate_task_data_can_be_appended(db_task)
+
+    slogger.task[db_task.id].info("adding more data to the task")
+
+    rq_job_meta = ImportRQMeta.for_job(rq.get_current_job())
+
+    def update_status(msg: str) -> None:
+        rq_job_meta.status = msg
+        rq_job_meta.save()
+
+    upload_dir = db_data.get_upload_dirname()
+    append_dir = db_data.get_append_dirname()
+
+    manifest_path = db_data.get_manifest_path()
+    manifest_size = manifest_path.stat().st_size if manifest_path.is_file() else None
+
+    moved_files: list[Path] = []
+    db_segments: list[models.Segment] = []
+
+    try:
+        update_status("Validating the uploaded files")
+
+        new_paths = [
+            p.relative_to(append_dir).as_posix()
+            for p in sorted(append_dir.rglob("*"))
+            if p.is_file() and get_mime(p) == "image"
+        ]
+        if not new_paths:
+            raise ValidationError("No image files were uploaded")
+
+        av_scan_paths(append_dir)
+
+        new_paths = sort(new_paths, db_data.sorting_method)
+
+        known_paths = set(db_data.images.values_list("path", flat=True))
+        known_paths.update(db_data.related_files.values_list("path", flat=True))
+        conflicting_paths = [p for p in new_paths if p in known_paths or (upload_dir / p).exists()]
+        if conflicting_paths:
+            raise ValidationError(
+                "Files with the same names already exist in the task: {}".format(
+                    format_list(conflicting_paths)
+                )
+            )
+
+        try:
+            image_infos = list(
+                DatasetImagesReader(
+                    sources=[append_dir / p for p in new_paths], data_dir=append_dir
+                )
+            )
+        except InvalidImageError as ex:
+            raise ValidationError(str(ex)) from ex
+
+        old_size = db_data.size
+        new_size = old_size + len(new_paths)
+
+        manifest = None
+        if manifest_size is not None:
+            manifest = ImageManifestManager(manifest_path)
+            manifest.set_index()
+            if len(manifest) != old_size:
+                raise ValidationError("The task manifest file does not match the task frames")
+
+        # Compute the layout of the new jobs
+        segment_size = db_task.segment_size or max(
+            (
+                db_segment.stop_frame - db_segment.start_frame + 1
+                for db_segment in models.Segment.objects.filter(
+                    task=db_task,
+                    type=models.SegmentType.RANGE,
+                    job__type=models.JobType.ANNOTATION,
+                ).distinct()
+            ),
+            default=len(new_paths),
+        )
+        overlap = min(db_task.overlap or 0, segment_size // 2)
+        segment_start_frames = range(
+            old_size, max(new_size - overlap, old_size + 1), segment_size - overlap
+        )
+
+        job_count_total = models.Job.objects.filter(segment__task=db_task).count() + len(
+            segment_start_frames
+        ) * (db_task.consensus_replicas + 1)
+        if job_count_total > settings.MAX_JOBS_PER_TASK:
+            raise ValidationError(
+                "Too many jobs would be created for the task. "
+                f"Current total: {job_count_total}, "
+                f"maximum allowed: {settings.MAX_JOBS_PER_TASK}."
+            )
+
+        update_status("Task is being saved in database")
+
+        for path in new_paths:
+            target_path = upload_dir / path
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(append_dir / path, target_path)
+            moved_files.append(target_path)
+
+        if manifest:
+            manifest.append(image_infos)
+
+        db_utils.bulk_create(
+            models.Image,
+            [
+                models.Image(
+                    data=db_data,
+                    path=path,
+                    frame=old_size + idx,
+                    width=image_info["width"],
+                    height=image_info["height"],
+                )
+                for idx, (path, image_info) in enumerate(zip(new_paths, image_infos))
+            ],
+        )
+
+        known_client_files = set(db_data.client_files.values_list("file", flat=True))
+        db_utils.bulk_create(
+            models.ClientFile,
+            [
+                models.ClientFile(data=db_data, file=client_file)
+                for client_file in (
+                    os.path.join(upload_dir, os.path.normpath(path)) for path in new_paths
+                )
+                if client_file not in known_client_files
+            ],
+        )
+
+        db_data.size = new_size
+        db_data.stop_frame = new_size - 1
+        try:
+            db_data.content_size = get_path_size(upload_dir)
+        except Exception:
+            slogger.glob.warning(
+                f"Could not calculate raw data size for task #{db_task.id}", exc_info=True
+            )
+        db_data.save(update_fields=["size", "stop_frame", "content_size"])
+
+        for segment_idx, start_frame in enumerate(segment_start_frames):
+            db_segments.append(
+                _create_segment_with_jobs(
+                    db_task,
+                    SegmentParams(
+                        start_frame=start_frame,
+                        stop_frame=min(start_frame + segment_size - 1, new_size - 1),
+                    ),
+                    segment_idx=segment_idx,
+                )
+            )
+
+        if (
+            settings.MEDIA_CACHE_ALLOW_STATIC_CACHE
+            and db_data.storage_method == models.StorageMethodChoice.FILE_SYSTEM
+        ):
+            _create_static_chunks(
+                db_task,
+                media_extractor=ImageListReader(
+                    source_paths=[
+                        upload_dir / path
+                        for path in db_data.images.order_by("frame").values_list("path", flat=True)
+                    ],
+                    sorting_method=models.SortingMethod.PREDEFINED,
+                ),
+                upload_dir=upload_dir,
+                db_segments=db_segments,
+            )
+
+        # The files are not sorted and the jobs are not equal anymore, so the file order
+        # and the job layout have to be stored explicitly in the task backups.
+        # This is what the zero segment size means.
+        db_task.segment_size = 0
+        db_task.save(update_fields=["segment_size", "updated_date"])
+
+        if db_task.project_id is not None:
+            db_task.project.touch()
+
+        slogger.glob.info(
+            "Added media to Data #{}: {} new frames, {} frames in total".format(
+                db_data.id, len(new_paths), new_size
+            )
+        )
+    except Exception:
+        # The database changes are reverted together with the transaction,
+        # the file system changes have to be reverted manually
+        for moved_file in moved_files:
+            moved_file.unlink(missing_ok=True)
+
+        if manifest_size is not None:
+            os.truncate(manifest_path, manifest_size)
+            ImageManifestManager(manifest_path).set_index()
+
+        for db_segment in db_segments:
+            for quality in models.FrameQuality:
+                for chunk_path in db_data.get_static_cache_dirname(quality).glob(
+                    f"segment_{db_segment.id}-*"
+                ):
+                    chunk_path.unlink(missing_ok=True)
+
+        raise
+    finally:
+        shutil.rmtree(append_dir, ignore_errors=True)

@@ -21,11 +21,12 @@ import { registerComponentShortcuts } from 'actions/shortcuts-actions';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import { ShortcutScope } from 'utils/enums';
 import { subKeyMap } from 'utils/component-subkeymap';
+import { t } from 'i18n';
 
 const componentShortcuts = {
     SWITCH_COLOR_BY_APPEARANCE_AUDIO: {
-        name: 'Switch objects appearance setting "Color by" (audio)',
-        description: 'Audio region color mode may be by label or instance',
+        name: t('Switch objects appearance setting "Color by" (audio)'),
+        description: t('Audio region color mode may be by label or instance'),
         sequences: [],
         scope: ShortcutScope.AUDIO_WORKSPACE_CONTROLS,
     },
@@ -123,24 +124,24 @@ function AudioAppearanceBlock(props: Props): JSX.Element {
             items={[{
                 label: (
                     <Text strong className='cvat-objects-appearance-collapse-header'>
-                        Appearance
+                        {t('Appearance')}
                     </Text>
                 ),
                 key: 'appearance',
                 children: (
                     <div className='cvat-objects-appearance-content cvat-appearance-block'>
                         <GlobalHotKeys keyMap={subKeyMap(componentShortcuts, keyMap)} handlers={handlers} />
-                        <Text type='secondary'>Color by</Text>
+                        <Text type='secondary'>{t('Color by')}</Text>
                         <Radio.Group
                             className='cvat-appearance-color-by-radio-group'
                             value={effectiveColorBy}
                             onChange={(event: RadioChangeEvent) => changeShapesColorBy(event.target.value)}
                         >
                             {colorByOptions.map((val) => (
-                                <Radio.Button value={val} key={val}>{val}</Radio.Button>
+                                <Radio.Button value={val} key={val}>{t(val)}</Radio.Button>
                             ))}
                         </Radio.Group>
-                        <Text type='secondary'>Opacity</Text>
+                        <Text type='secondary'>{t('Opacity')}</Text>
                         <Slider
                             className='cvat-appearance-opacity-slider'
                             onChange={changeShapesOpacity}
@@ -148,7 +149,7 @@ function AudioAppearanceBlock(props: Props): JSX.Element {
                             min={0}
                             max={100}
                         />
-                        <Text type='secondary'>Selected opacity</Text>
+                        <Text type='secondary'>{t('Selected opacity')}</Text>
                         <Slider
                             className='cvat-appearance-selected-opacity-slider'
                             onChange={changeSelectedShapesOpacity}

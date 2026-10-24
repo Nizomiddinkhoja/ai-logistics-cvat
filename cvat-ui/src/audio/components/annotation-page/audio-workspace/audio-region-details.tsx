@@ -15,6 +15,7 @@ import TextArea from 'antd/lib/input/TextArea';
 import { AudioIntervalState, Label, Attribute } from 'cvat-core-wrapper';
 import { clamp } from 'utils/math';
 import { ColorBy } from 'reducers';
+import { t } from 'i18n';
 import AudioIntervalActions, { AudioIntervalActionShortcuts } from './audio-interval-actions';
 import AudioIntervalHeader from './audio-interval-header';
 
@@ -227,7 +228,7 @@ function AudioRegionDetails(props: AudioRegionDetailsProps): JSX.Element {
                 )}
                 {attributes.length === 0 && activeLabel && (
                     <div className='cvat-audio-region-no-attributes'>
-                        No attributes defined for this label
+                        {t('No attributes defined for this label')}
                     </div>
                 )}
             </div>

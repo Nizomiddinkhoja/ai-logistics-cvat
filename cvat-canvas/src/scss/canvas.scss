@@ -92,6 +92,24 @@ image.cvat_canvas_shape_selection {
     stroke: white;
 }
 
+/* Objects included into the current multi selection (ctrl+click, shift+click, shift+drag) */
+.cvat_canvas_shape_multiselected {
+    @extend .cvat_shape_action_dasharray;
+
+    stroke: #16e7ff;
+    stroke-opacity: 1;
+}
+
+/* skeletons keep their shapes in a group, the class lands on the group itself */
+g.cvat_canvas_shape_multiselected > * {
+    stroke: #16e7ff;
+}
+
+/* masks are rendered as images, a stroke does not apply to them */
+image.cvat_canvas_shape_multiselected {
+    filter: drop-shadow(0 0 3px #16e7ff) drop-shadow(0 0 3px #16e7ff);
+}
+
 .cvat_canvas_shape_region_selection {
     @extend .cvat_shape_action_dasharray;
     @extend .cvat_shape_action_opacity;

@@ -5,6 +5,7 @@
 import './styles.scss';
 import React from 'react';
 import { StorageData, StorageLocation } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 import StorageWithSwitchField from './storage-with-switch-field';
 
 export interface Props {
@@ -34,7 +35,7 @@ export default function SourceStorageField(props: Props): JSX.Element {
 
     return (
         <StorageWithSwitchField
-            storageLabel='Source storage'
+            storageLabel={t('Source storage')}
             storageName='sourceStorage'
             switchName='useProjectSourceStorage'
             instanceId={instanceId}

@@ -21,6 +21,7 @@ import { cancelInferenceAsync } from 'actions/models-actions';
 import { CombinedState, ActiveInference } from 'reducers';
 import CVATTag, { TagType } from 'components/common/cvat-tag';
 import { usePlugins } from 'utils/hooks';
+import { t } from 'i18n';
 import UserSelector from './user-selector';
 import BugTrackerEditor from './bug-tracker-editor';
 import CloudStorageEditor from './cloud-storage-editor';
@@ -175,14 +176,14 @@ class DetailsComponent extends React.PureComponent<Props, State> {
                         {owner && (
                             <div>
                                 <Text type='secondary'>
-                                    {`Task #${taskInstance.id} Created by ${owner} on ${created}`}
+                                    {t('Task #{{id}} Created by {{owner}} on {{created}}', { id: taskInstance.id, owner, created })}
                                 </Text>
                             </div>
                         )}
                         {consensusEnabled && <CVATTag type={TagType.CONSENSUS} />}
                     </Col>
                     <Col>
-                        <Text type='secondary'>Assigned to</Text>
+                        <Text type='secondary'>{t('Assigned to')}</Text>
                         {assigneeSelect}
                     </Col>
                 </Row>
@@ -224,7 +225,7 @@ class DetailsComponent extends React.PureComponent<Props, State> {
         return (
             <Row>
                 <Col span={24}>
-                    <Text className='cvat-text-color'>Subset:</Text>
+                    <Text className='cvat-text-color'>{t('Subset:')}</Text>
                 </Col>
                 <Col span={24}>
                     <ProjectSubsetField

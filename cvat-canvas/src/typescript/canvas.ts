@@ -27,6 +27,7 @@ interface Canvas {
     setupConflictRegions(clientID: number): number[];
     activate(clientID: number | null, attributeID?: number): void;
     highlight(clientIDs: number[] | null, severity: HighlightSeverity | null): void;
+    selectObjects(clientIDs: number[]): void;
     rotate(rotationAngle: number): void;
     focus(clientID: number, padding?: number): void;
     fit(): void;
@@ -116,6 +117,10 @@ class CanvasImpl implements Canvas {
 
     public highlight(clientIDs: number[], severity: HighlightSeverity | null = null): void {
         this.model.highlight(clientIDs, severity);
+    }
+
+    public selectObjects(clientIDs: number[]): void {
+        this.model.selectObjects(clientIDs);
     }
 
     public rotate(rotationAngle: number): void {

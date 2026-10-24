@@ -8,6 +8,7 @@ import { EditOutlined } from '@ant-design/icons';
 import classNames from 'classnames';
 
 import { Label } from 'cvat-core-wrapper';
+import { t } from 'i18n';
 
 interface Props {
     labels: Label[];
@@ -61,7 +62,7 @@ export default function AudioIntervalLabelSelector({
         >
             <div className='cvat-audio-region-label-trigger' role='button' tabIndex={0}>
                 <span className='cvat-audio-region-label-color' style={{ backgroundColor: activeLabel?.color || '#9CA3AF' }} />
-                <span className='cvat-audio-region-label-trigger-name'>{activeLabel?.name || 'No label'}</span>
+                <span className='cvat-audio-region-label-trigger-name'>{activeLabel?.name || t('No label')}</span>
                 {!isReadonly ? <EditOutlined className='cvat-audio-region-label-edit-icon' /> : null}
             </div>
         </Popover>

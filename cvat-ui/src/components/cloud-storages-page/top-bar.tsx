@@ -19,6 +19,7 @@ import {
 } from 'components/resource-sorting-filtering';
 
 import dimensions from 'utils/dimensions';
+import { t } from 'i18n';
 
 import {
     localStorageRecentKeyword, localStorageRecentCapacity,
@@ -57,7 +58,7 @@ export default function StoragesTopBar(props: Readonly<Props>): JSX.Element {
                             }}
                             defaultValue={query.search ?? ''}
                             className='cvat-cloudstorages-page-tasks-search-bar'
-                            placeholder='Search ...'
+                            placeholder={t('Search ...')}
                         />
                         <ResourceSelectionInfo selectedCount={selectedCount} onSelectAll={onSelectAll} />
                     </div>

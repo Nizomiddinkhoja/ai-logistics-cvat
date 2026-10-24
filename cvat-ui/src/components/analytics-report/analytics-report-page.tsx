@@ -17,6 +17,7 @@ import { shallowEqual } from 'utils/redux';
 import { CombinedState, InstanceType } from 'reducers';
 import GoBackButton from 'components/common/go-back-button';
 import CVATLoadingSpinner from 'components/common/loading-spinner';
+import { t } from 'i18n';
 import AnalyticsReportContent from './analytics-report-content';
 import AnalyticsPageHeader from './analytics-page-header';
 import { TimePeriod } from '.';
@@ -89,7 +90,7 @@ function AnalyticsReportPage(): JSX.Element {
             }
         } catch (error: unknown) {
             notification.error({
-                message: 'Could not export events for the target resource',
+                message: t('Could not export events for the target resource'),
                 description: error instanceof Error ? error.message : '',
             });
         } finally {
@@ -122,7 +123,7 @@ function AnalyticsReportPage(): JSX.Element {
                 setResource(_resource[0]);
             }).catch((error: unknown) => {
                 notification.error({
-                    message: 'Could not receive the target resource from the server',
+                    message: t('Could not receive the target resource from the server'),
                     description: error instanceof Error ? error.message : '',
                 });
             }).finally(() => {
